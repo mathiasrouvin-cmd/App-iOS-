@@ -14,8 +14,9 @@ const rules: Array<[CategoryId, string[]]> = [
   ]],
   ['restaurants', [
     'uber eats', 'ubereats', 'deliveroo', 'just eat', 'frichti', 'mcdonald',
-    'burger king', 'kfc', 'starbucks', 'restaurant', 'bistro', 'brasserie',
-    'pizza', 'sushi', 'boulangerie', 'paul ', 'pret a manger'
+    'burger king', ' kfc ', 'starbucks', 'restaurant', 'bistro', 'brasserie',
+    'pizza', 'sushi', 'boulangerie', 'patisserie', 'cafe', 'coffee',
+    'bar ', 'creperie', 'kebab', 'tacos', 'pret a manger'
   ]],
   ['transport', [
     'uber', 'bolt', 'sncf', 'ratp', 'navigo', 'blablacar', 'total ', 'shell',
@@ -46,8 +47,9 @@ const rules: Array<[CategoryId, string[]]> = [
     'bricorama', 'sephora', 'nocibe', 'apple store'
   ]],
   ['income', [
-    'salaire', 'virement recu', 'remuneration', 'paie', 'paye', 'caf',
-    'remboursement', 'refund'
+    'salaire', 'virement recu', 'vir recu', 'remuneration',
+    ' caf ', 'allocations familiales', 'remboursement', 'refund',
+    'bulletin de paie', 'bulletin paie', 'fiche de paie'
   ]],
   ['transfers', [
     'virement', 'vir sepa', 'lydia', 'paypal', 'revolut', 'wise',
@@ -60,13 +62,26 @@ function normalize(s: string): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[*/]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
+
+const PEER_TO_PEER = ['lydia', 'paypal', 'revolut', 'wise', 'pumpkin']
 
 export function classify(label: string, amount: number): CategoryId {
   const n = ` ${normalize(label)} `
   for (const [cat, keywords] of rules) {
     for (const k of keywords) {
-      if (n.includes(k)) return cat
+      if (n.includes(k)) {
+        // Incoming virement from a non-P2P service is almost always income
+        // (salary, refund, family transfer), never a "transfer out".
+        if (cat === 'transfers' && amount > 0 &&
+            !PEER_TO_PEER.some(p => n.includes(p))) {
+          return 'income'
+        }
+        return cat
+      }
     }
   }
   return amount > 0 ? 'income' : 'other'
