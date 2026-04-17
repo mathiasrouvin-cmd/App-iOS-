@@ -7,40 +7,75 @@ import { fmtEuro } from './format'
 export interface MonthlySummary {
   month: string
   monthName: string
-  expenses: number
+  variableExpenses: number
   income: number
   transactionCount: number
-  deltaVsPrevious: number | null  // % change vs previous month, can be null
+  deltaVsPrevious: number | null
   topCategory: { label: string; icon: unknown; color: string; share: number } | null
-  subscriptionCost: number
+  recurringCost: number
   biggestExpense: Transaction | null
+  fixedCount: number
   text: string
+}
+
+// Build the set of transaction IDs considered "fixed" (rent, loans,
+// insurance, streaming subs…). Anything the subscription detector tagged
+// as at least a monthly cadence counts.
+function fixedTransactionIds(transactions: Transaction[]): Set<string> {
+  const subs = detectSubscriptions(transactions)
+  const ids = new Set<string>()
+  for (const s of subs) {
+    if (s.cadence === 'monthly' || s.cadence === 'quarterly' || s.cadence === 'yearly') {
+      for (const t of s.samples) ids.add(t.id)
+    }
+  }
+  return ids
+}
+
+function monthlyRecurringCost(transactions: Transaction[]): number {
+  const subs = detectSubscriptions(transactions)
+  return subs.reduce((s, x) => s + x.monthlyCost, 0)
+}
+
+function variableExpensesFor(
+  transactions: Transaction[],
+  month: string,
+  fixedIds: Set<string>
+): { sum: number; txs: Transaction[] } {
+  const txs = transactions.filter(
+    t => monthKey(t.date) === month && t.amount < 0 && !fixedIds.has(t.id)
+  )
+  return {
+    sum: txs.reduce((s, t) => s + Math.abs(t.amount), 0),
+    txs
+  }
 }
 
 export function buildMonthlySummary(
   transactions: Transaction[],
   targetMonth: string
 ): MonthlySummary | null {
-  const txs = transactions.filter(t => monthKey(t.date) === targetMonth)
-  if (txs.length === 0) return null
+  const txsThisMonth = transactions.filter(t => monthKey(t.date) === targetMonth)
+  if (txsThisMonth.length === 0) return null
 
-  const expenses = Math.abs(txs.filter(t => t.amount < 0).reduce((s, t) => s + t.amount, 0))
-  const income = txs.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0)
-  const transactionCount = txs.length
+  const fixedIds = fixedTransactionIds(transactions)
+  const { sum: variableExpenses, txs: variableTxs } =
+    variableExpensesFor(transactions, targetMonth, fixedIds)
 
-  // Previous month delta
+  const income = txsThisMonth.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0)
+  const fixedCount = txsThisMonth.filter(t => t.amount < 0 && fixedIds.has(t.id)).length
+  const transactionCount = variableTxs.length
+
+  // Delta vs previous month, also on variable-only basis so we compare like-for-like.
   const [yStr, mStr] = targetMonth.split('-')
-  const y = Number(yStr), m = Number(mStr)
-  const prevDate = new Date(y, m - 2, 1)
+  const prevDate = new Date(Number(yStr), Number(mStr) - 2, 1)
   const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`
-  const prevTxs = transactions.filter(t => monthKey(t.date) === prevKey)
-  const prevExpenses = Math.abs(prevTxs.filter(t => t.amount < 0).reduce((s, t) => s + t.amount, 0))
-  const deltaVsPrevious = prevExpenses > 0 ? ((expenses - prevExpenses) / prevExpenses) * 100 : null
+  const { sum: prevVariable } = variableExpensesFor(transactions, prevKey, fixedIds)
+  const deltaVsPrevious =
+    prevVariable > 0 ? ((variableExpenses - prevVariable) / prevVariable) * 100 : null
 
-  // Top category
   const perCat = new Map<string, number>()
-  for (const t of txs) {
-    if (t.amount >= 0) continue
+  for (const t of variableTxs) {
     perCat.set(t.category, (perCat.get(t.category) ?? 0) + Math.abs(t.amount))
   }
   let topEntry: [string, number] | null = null
@@ -52,52 +87,50 @@ export function buildMonthlySummary(
         label: categoryById[topEntry[0] as keyof typeof categoryById].label,
         icon: categoryById[topEntry[0] as keyof typeof categoryById].icon,
         color: categoryById[topEntry[0] as keyof typeof categoryById].color,
-        share: expenses > 0 ? (topEntry[1] / expenses) * 100 : 0
+        share: variableExpenses > 0 ? (topEntry[1] / variableExpenses) * 100 : 0
       }
     : null
 
-  // Subscriptions
-  const subs = detectSubscriptions(transactions)
-  const subscriptionCost = subs.reduce((s, x) => s + x.monthlyCost, 0)
+  const biggestExpense = [...variableTxs].sort((a, b) => a.amount - b.amount)[0] ?? null
 
-  // Biggest expense
-  const biggestExpense = txs
-    .filter(t => t.amount < 0)
-    .sort((a, b) => a.amount - b.amount)[0] ?? null
-
+  const recurringCost = monthlyRecurringCost(transactions)
   const monthName = monthLabel(targetMonth)
+
   const text = buildText({
     monthName,
-    expenses,
+    variableExpenses,
     transactionCount,
     deltaVsPrevious,
     topCategory,
-    subscriptionCost,
-    biggestExpense
+    recurringCost,
+    biggestExpense,
+    fixedCount
   })
 
   return {
     month: targetMonth,
     monthName,
-    expenses,
+    variableExpenses,
     income,
     transactionCount,
     deltaVsPrevious,
     topCategory,
-    subscriptionCost,
+    recurringCost,
     biggestExpense,
+    fixedCount,
     text
   }
 }
 
 function buildText(data: {
   monthName: string
-  expenses: number
+  variableExpenses: number
   transactionCount: number
   deltaVsPrevious: number | null
   topCategory: { label: string; share: number } | null
-  subscriptionCost: number
+  recurringCost: number
   biggestExpense: Transaction | null
+  fixedCount: number
 }): string {
   const pieces: string[] = []
 
@@ -109,23 +142,24 @@ function buildText(data: {
       ? ` (+${Math.round(delta)} % vs mois précédent)`
       : ` (${Math.round(delta)} % vs mois précédent)`
 
+  const exclNote = data.fixedCount > 0 ? ' hors charges fixes' : ''
   pieces.push(
-    `**${monthCap}** : ${fmtEuro(-data.expenses)} dépensés${deltaStr} sur ${data.transactionCount} transactions.`
+    `**${monthCap}** : ${fmtEuro(-data.variableExpenses)} de dépenses variables${deltaStr} sur ${data.transactionCount} transactions${exclNote}.`
   )
 
-  if (data.topCategory) {
+  if (data.topCategory && data.topCategory.share > 0) {
     pieces.push(
       `Top catégorie : **${data.topCategory.label}** (${Math.round(data.topCategory.share)} %).`
     )
   }
 
-  if (data.subscriptionCost > 0) {
-    pieces.push(`Tes abos récurrents pèsent ${fmtEuro(-data.subscriptionCost)}/mois.`)
+  if (data.recurringCost > 0) {
+    pieces.push(`Charges récurrentes détectées : ${fmtEuro(-data.recurringCost)}/mois.`)
   }
 
   if (data.biggestExpense) {
     pieces.push(
-      `Plus grosse dépense : ${data.biggestExpense.label} (${fmtEuro(data.biggestExpense.amount)}).`
+      `Plus grosse dépense variable : ${data.biggestExpense.label} (${fmtEuro(data.biggestExpense.amount)}).`
     )
   }
 

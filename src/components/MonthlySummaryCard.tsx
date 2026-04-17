@@ -11,14 +11,21 @@ export default function MonthlySummaryCard({ summary }: Props) {
     <div className="monthly-summary">
       <div className="monthly-summary-head">
         <span className="monthly-summary-badge">Ton mois en bref</span>
-        {TopIcon && summary.topCategory && (
-          <div
-            className="monthly-summary-topicon"
-            style={{ background: summary.topCategory.color }}
-          >
-            <TopIcon size={14} strokeWidth={2.4} />
-          </div>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {summary.fixedCount > 0 && (
+            <span className="monthly-summary-pill" title="Loyer, prêt, abos récurrents exclus">
+              excl. charges fixes
+            </span>
+          )}
+          {TopIcon && summary.topCategory && (
+            <div
+              className="monthly-summary-topicon"
+              style={{ background: summary.topCategory.color }}
+            >
+              <TopIcon size={14} strokeWidth={2.4} />
+            </div>
+          )}
+        </div>
       </div>
       <p className="monthly-summary-text">{renderRich(summary.text)}</p>
     </div>

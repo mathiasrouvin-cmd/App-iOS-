@@ -869,6 +869,16 @@ a { color: var(--accent); text-decoration: none; }
   display: grid; place-items: center;
   color: #fff;
 }
+.monthly-summary-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: color-mix(in oklab, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
 .monthly-summary-text {
   margin: 0;
   font-size: 14.5px;
