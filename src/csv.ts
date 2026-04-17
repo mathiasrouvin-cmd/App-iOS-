@@ -1,4 +1,4 @@
-import { classify } from './classifier'
+import { classify, type CustomRule } from './classifier'
 import type { Transaction } from './types'
 
 export class CsvImportError extends Error {}
@@ -93,7 +93,7 @@ function detectHeaderRow(lines: string[]): {
   return null
 }
 
-export function parseCsv(content: string): Transaction[] {
+export function parseCsv(content: string, customRules: CustomRule[] = []): Transaction[] {
   const lines = content.split(/\r?\n/).filter(l => l.trim().length > 0)
   if (lines.length < 2) throw new CsvImportError('Le fichier CSV est vide.')
 
@@ -142,7 +142,7 @@ export function parseCsv(content: string): Transaction[] {
       date,
       label,
       amount,
-      category: classify(label, amount)
+      category: classify(label, amount, customRules)
     })
   }
 

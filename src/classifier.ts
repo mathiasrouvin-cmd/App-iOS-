@@ -57,7 +57,7 @@ const rules: Array<[CategoryId, string[]]> = [
   ]]
 ]
 
-function normalize(s: string): string {
+export function normalize(s: string): string {
   return s
     .toLowerCase()
     .normalize('NFD')
@@ -67,15 +67,30 @@ function normalize(s: string): string {
     .trim()
 }
 
+export interface CustomRule {
+  id: string
+  keyword: string
+  category: CategoryId
+}
+
 const PEER_TO_PEER = ['lydia', 'paypal', 'revolut', 'wise', 'pumpkin']
 
-export function classify(label: string, amount: number): CategoryId {
+export function classify(
+  label: string,
+  amount: number,
+  customRules: CustomRule[] = []
+): CategoryId {
   const n = ` ${normalize(label)} `
+
+  // User rules take precedence
+  for (const r of customRules) {
+    const kw = normalize(r.keyword)
+    if (kw && n.includes(kw)) return r.category
+  }
+
   for (const [cat, keywords] of rules) {
     for (const k of keywords) {
       if (n.includes(k)) {
-        // Incoming virement from a non-P2P service is almost always income
-        // (salary, refund, family transfer), never a "transfer out".
         if (cat === 'transfers' && amount > 0 &&
             !PEER_TO_PEER.some(p => n.includes(p))) {
           return 'income'

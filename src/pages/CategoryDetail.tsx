@@ -4,17 +4,18 @@ import { useStore } from '../store'
 import { categoryById, type CategoryId } from '../types'
 import { fmtEuro } from '../format'
 import TransactionRow from '../components/TransactionRow'
+import { inPeriod, periodLabel } from '../utils/date'
 
 export default function CategoryDetail() {
   const { id } = useParams<{ id: CategoryId }>()
-  const { transactions } = useStore()
+  const { transactions, settings } = useStore()
   const meta = id ? categoryById[id] : undefined
 
   const items = useMemo(() => {
     return transactions
-      .filter(t => t.category === id)
+      .filter(t => t.category === id && inPeriod(t, settings.period))
       .sort((a, b) => (a.date < b.date ? 1 : -1))
-  }, [transactions, id])
+  }, [transactions, id, settings.period])
 
   const total = items.reduce((s, t) => s + t.amount, 0)
 
@@ -45,7 +46,7 @@ export default function CategoryDetail() {
             {fmtEuro(total)}
           </div>
           <div className="caption">
-            {items.length} transaction{items.length > 1 ? 's' : ''}
+            {items.length} transaction{items.length > 1 ? 's' : ''} · {periodLabel(settings.period)}
           </div>
         </div>
 
