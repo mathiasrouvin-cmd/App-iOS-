@@ -60,18 +60,56 @@ function findColumn(header: string[], needles: string[]): number {
   return header.findIndex(h => needles.some(n => h.includes(n)))
 }
 
+function normalizeHeader(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+}
+
+const LABEL_KEYWORDS = ['libell', 'label', 'description', 'intitul', 'motif', 'operation']
+const AMOUNT_KEYWORDS = ['montant', 'amount', 'valeur']
+const DEBIT_KEYWORDS = ['debit']
+const CREDIT_KEYWORDS = ['credit']
+
+function detectHeaderRow(lines: string[]): {
+  index: number
+  sep: string
+  columns: string[]
+} | null {
+  for (let i = 0; i < Math.min(lines.length, 30); i++) {
+    const sep = detectSeparator(lines[i])
+    const cols = splitLine(lines[i], sep).map(normalizeHeader)
+    const hasDate = cols.some(c => c.includes('date'))
+    const hasLabel = cols.some(c => LABEL_KEYWORDS.some(k => c.includes(k)))
+    const hasAmount = cols.some(c =>
+      [...AMOUNT_KEYWORDS, ...DEBIT_KEYWORDS, ...CREDIT_KEYWORDS].some(k => c.includes(k))
+    )
+    if (hasDate && (hasLabel || hasAmount)) {
+      return { index: i, sep, columns: cols }
+    }
+  }
+  return null
+}
+
 export function parseCsv(content: string): Transaction[] {
   const lines = content.split(/\r?\n/).filter(l => l.trim().length > 0)
   if (lines.length < 2) throw new CsvImportError('Le fichier CSV est vide.')
 
-  const sep = detectSeparator(lines[0])
-  const header = splitLine(lines[0], sep).map(h => h.toLowerCase())
+  const detected = detectHeaderRow(lines)
+  if (!detected) {
+    throw new CsvImportError(
+      'Colonnes introuvables. Attendu: date, libellé, montant (ou débit/crédit).'
+    )
+  }
+  const { index: headerIdx, sep, columns: header } = detected
 
   const dateIdx = findColumn(header, ['date'])
-  const labelIdx = findColumn(header, ['libell', 'label', 'description', 'intitul', 'motif'])
-  const amountIdx = findColumn(header, ['montant', 'amount', 'valeur'])
-  const debitIdx = findColumn(header, ['debit'])
-  const creditIdx = findColumn(header, ['credit'])
+  const labelIdx = findColumn(header, LABEL_KEYWORDS)
+  const amountIdx = findColumn(header, AMOUNT_KEYWORDS)
+  const debitIdx = findColumn(header, DEBIT_KEYWORDS)
+  const creditIdx = findColumn(header, CREDIT_KEYWORDS)
 
   if (dateIdx < 0 || labelIdx < 0 || (amountIdx < 0 && debitIdx < 0 && creditIdx < 0)) {
     throw new CsvImportError(
@@ -80,9 +118,9 @@ export function parseCsv(content: string): Transaction[] {
   }
 
   const transactions: Transaction[] = []
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = headerIdx + 1; i < lines.length; i++) {
     const fields = splitLine(lines[i], sep)
-    if (fields.length < header.length - 1) continue
+    if (fields.length < 2) continue
 
     const dateRaw = fields[dateIdx] ?? ''
     const label = (fields[labelIdx] ?? '').trim()
