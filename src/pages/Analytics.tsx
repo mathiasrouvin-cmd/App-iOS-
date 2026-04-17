@@ -6,6 +6,7 @@ import { fmtEuro } from '../format'
 import PeriodPicker from '../components/PeriodPicker'
 import PieChart from '../components/PieChart'
 import BarChart from '../components/BarChart'
+import { IconTrendDown, IconTrendUp, IconAvg } from '../icons'
 
 export default function Analytics() {
   const { transactions, settings, setPeriod } = useStore()
@@ -80,6 +81,8 @@ export default function Analytics() {
     return sum / perMonth.size
   }, [transactions])
 
+  const TopIcon = topCategory?.icon
+
   return (
     <div className="screen with-tabbar">
       <div className="nav">
@@ -93,17 +96,23 @@ export default function Analytics() {
 
         <div className="stats-row">
           <div className="stat-card">
-            <div className="stat-icon" style={{ background: 'rgba(220,38,38,0.12)', color: 'var(--red)' }}>↑</div>
+            <div className="stat-icon" style={{ background: 'rgba(239,68,68,0.12)', color: 'var(--red)' }}>
+              <IconTrendDown size={16} strokeWidth={2.4} />
+            </div>
             <div className="stat-caption">Dépenses</div>
             <div className="stat-value amount-neg">{fmtEuro(-totalExpenses)}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-icon" style={{ background: 'rgba(22,163,74,0.12)', color: 'var(--green)' }}>↓</div>
+            <div className="stat-icon" style={{ background: 'rgba(16,185,129,0.12)', color: 'var(--green)' }}>
+              <IconTrendUp size={16} strokeWidth={2.4} />
+            </div>
             <div className="stat-caption">Revenus</div>
             <div className="stat-value amount-pos">{fmtEuro(totalIncome)}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-icon" style={{ background: 'rgba(15,118,110,0.12)', color: 'var(--accent)' }}>⌀</div>
+            <div className="stat-icon" style={{ background: 'rgba(13,148,136,0.12)', color: 'var(--accent)' }}>
+              <IconAvg size={16} strokeWidth={2.4} />
+            </div>
             <div className="stat-caption">Moy. mensuelle</div>
             <div className="stat-value">{fmtEuro(-monthlyAverage)}</div>
           </div>
@@ -118,14 +127,14 @@ export default function Analytics() {
                 <div className="donut-canvas-wrap">
                   <PieChart slices={slices} />
                   <div className="donut-center">
-                    <div className="donut-center-caption">
-                      {topCategory && (
-                        <>
-                          <span style={{ fontSize: 22 }}>{topCategory.icon}</span>
-                          <div className="donut-center-label">{topCategory.label}</div>
-                        </>
-                      )}
-                    </div>
+                    {topCategory && TopIcon && (
+                      <div className="donut-center-caption">
+                        <div className="donut-center-icon" style={{ background: topCategory.color }}>
+                          <TopIcon size={18} strokeWidth={2.4} />
+                        </div>
+                        <div className="donut-center-label">{topCategory.label}</div>
+                      </div>
+                    )}
                     <div className="donut-center-value">
                       {topCategory
                         ? `${Math.round((topCategory.value / totalExpenses) * 100)}%`
@@ -139,10 +148,13 @@ export default function Analytics() {
               <ul className="legend-bars">
                 {slices.map(s => {
                   const pct = (s.value / totalExpenses) * 100
+                  const Icon = s.icon
                   return (
                     <li key={s.id} className="legend-row">
                       <div className="legend-row-head">
-                        <span className="legend-emoji">{s.icon}</span>
+                        <div className="legend-swatch" style={{ background: s.color }}>
+                          <Icon size={14} strokeWidth={2.4} />
+                        </div>
                         <span className="legend-title">{s.label}</span>
                         <span className="legend-amount">{fmtEuro(-s.value)}</span>
                       </div>
@@ -167,10 +179,13 @@ export default function Analytics() {
             <div className="card">
               {topMerchants.map((m, i) => {
                 const meta = categoryById[m.category as keyof typeof categoryById]
+                const Icon = meta.icon
                 const ratio = m.total / topMerchants[0].total
                 return (
                   <div key={i} className="row">
-                    <div className="icon-tile" style={{ background: meta.color }}>{meta.icon}</div>
+                    <div className="icon-tile" style={{ background: meta.color }}>
+                      <Icon size={18} strokeWidth={2.2} />
+                    </div>
                     <div className="row-body">
                       <div className="row-title">{m.label}</div>
                       <div className="merchant-track">

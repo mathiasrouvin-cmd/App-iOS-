@@ -5,6 +5,7 @@ import { categoryById, type CategoryId } from '../types'
 import { fmtEuro } from '../format'
 import TransactionRow from '../components/TransactionRow'
 import { inPeriod, periodLabel } from '../utils/date'
+import { IconBack } from '../icons'
 
 export default function CategoryDetail() {
   const { id } = useParams<{ id: CategoryId }>()
@@ -23,7 +24,9 @@ export default function CategoryDetail() {
     return (
       <div className="screen">
         <div className="nav">
-          <Link to="/" className="nav-btn">‹ Retour</Link>
+          <Link to="/" className="nav-btn">
+            <IconBack size={20} strokeWidth={2.4} /> Retour
+          </Link>
           <h1>Catégorie inconnue</h1>
           <span className="nav-btn right" />
         </div>
@@ -31,17 +34,23 @@ export default function CategoryDetail() {
     )
   }
 
+  const Icon = meta.icon
+
   return (
     <div className="screen">
       <div className="nav">
-        <Link to="/" className="nav-btn">‹ Compte</Link>
+        <Link to="/" className="nav-btn">
+          <IconBack size={20} strokeWidth={2.4} /> Compte
+        </Link>
         <h1>{meta.label}</h1>
         <span className="nav-btn right" />
       </div>
 
       <div className="container">
         <div className="detail-header" style={{ '--tile': meta.color } as React.CSSProperties}>
-          <div className="icon-big">{meta.icon}</div>
+          <div className="icon-big">
+            <Icon size={38} strokeWidth={1.8} />
+          </div>
           <div className={`amount-big ${total < 0 ? 'amount-neg' : 'amount-pos'}`}>
             {fmtEuro(total)}
           </div>

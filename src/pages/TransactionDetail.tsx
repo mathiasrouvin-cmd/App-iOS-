@@ -2,6 +2,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { CATEGORIES, categoryById, type CategoryId } from '../types'
 import { useStore } from '../store'
 import { fmtDateLong, fmtEuro } from '../format'
+import { IconBack, IconTrash } from '../icons'
 
 export default function TransactionDetail() {
   const { id } = useParams<{ id: string }>()
@@ -14,7 +15,9 @@ export default function TransactionDetail() {
     return (
       <div className="screen">
         <div className="nav">
-          <Link to="/" className="nav-btn">‹ Retour</Link>
+          <Link to="/" className="nav-btn">
+            <IconBack size={20} strokeWidth={2.4} /> Retour
+          </Link>
           <h1>Introuvable</h1>
           <span className="nav-btn right" />
         </div>
@@ -23,18 +26,23 @@ export default function TransactionDetail() {
   }
 
   const meta = categoryById[tx.category]
+  const Icon = meta.icon
 
   return (
     <div className="screen">
       <div className="nav">
-        <button className="nav-btn" onClick={() => navigate(-1)}>‹ Retour</button>
+        <button className="nav-btn" onClick={() => navigate(-1)}>
+          <IconBack size={20} strokeWidth={2.4} /> Retour
+        </button>
         <h1>Détail</h1>
         <span className="nav-btn right" />
       </div>
 
       <div className="container">
         <div className="detail-header" style={{ '--tile': meta.color } as React.CSSProperties}>
-          <div className="icon-big">{meta.icon}</div>
+          <div className="icon-big">
+            <Icon size={38} strokeWidth={1.8} />
+          </div>
           <div className={`amount-big ${tx.amount < 0 ? 'amount-neg' : 'amount-pos'}`}>
             {fmtEuro(tx.amount)}
           </div>
@@ -70,7 +78,7 @@ export default function TransactionDetail() {
               onChange={e => updateCategory(tx.id, e.target.value as CategoryId)}
             >
               {CATEGORIES.map(c => (
-                <option key={c.id} value={c.id}>{c.icon} {c.label}</option>
+                <option key={c.id} value={c.id}>{c.label}</option>
               ))}
             </select>
           </div>
@@ -79,6 +87,7 @@ export default function TransactionDetail() {
         <div style={{ marginTop: 24, textAlign: 'center' }}>
           <button
             className="danger"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 500 }}
             onClick={() => {
               if (confirm('Supprimer cette transaction ?')) {
                 deleteTransaction(tx.id)
@@ -86,6 +95,7 @@ export default function TransactionDetail() {
               }
             }}
           >
+            <IconTrash size={16} strokeWidth={2.2} />
             Supprimer la transaction
           </button>
         </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { verifyCredential } from '../lock'
+import { IconFingerprint } from '../icons'
 
 interface Props {
   credentialId: string
@@ -20,15 +21,15 @@ export default function LockScreen({ credentialId, onUnlock }: Props) {
   }
 
   useEffect(() => {
-    // Try automatic unlock on mount (on iOS this still requires a user gesture
-    // in some contexts, but we attempt it anyway for a smooth flow).
     unlock()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (
     <div className="lock-screen">
-      <div className="lock-icon">🔒</div>
+      <div className="lock-icon-wrap">
+        <IconFingerprint size={44} strokeWidth={1.6} />
+      </div>
       <h2>Mon compte</h2>
       <p className="secondary">Déverrouille avec Face ID / Touch ID.</p>
       <button className="primary-btn" onClick={unlock} disabled={busy}>

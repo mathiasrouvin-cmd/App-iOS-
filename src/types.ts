@@ -1,3 +1,10 @@
+import type { LucideIcon } from 'lucide-react'
+import {
+  IconSubscription, IconGrocery, IconRestaurant, IconTransport,
+  IconHouse, IconUtility, IconHealth, IconLeisure, IconShopping,
+  IconIncome, IconTransfer, IconOther
+} from './icons'
+
 export type CategoryId =
   | 'subscriptions'
   | 'groceries'
@@ -15,7 +22,7 @@ export type CategoryId =
 export interface CategoryMeta {
   id: CategoryId
   label: string
-  icon: string
+  icon: LucideIcon
   color: string
 }
 
@@ -28,18 +35,18 @@ export interface Transaction {
 }
 
 export const CATEGORIES: CategoryMeta[] = [
-  { id: 'subscriptions', label: 'Abonnements', icon: '🔁', color: '#8b5cf6' },
-  { id: 'groceries', label: 'Courses', icon: '🛒', color: '#16a34a' },
-  { id: 'restaurants', label: 'Restaurants', icon: '🍴', color: '#f97316' },
-  { id: 'transport', label: 'Transport', icon: '🚗', color: '#2563eb' },
-  { id: 'housing', label: 'Logement', icon: '🏠', color: '#92400e' },
-  { id: 'utilities', label: 'Factures', icon: '⚡', color: '#eab308' },
-  { id: 'health', label: 'Santé', icon: '➕', color: '#dc2626' },
-  { id: 'leisure', label: 'Loisirs', icon: '🎮', color: '#ec4899' },
-  { id: 'shopping', label: 'Shopping', icon: '🛍️', color: '#6366f1' },
-  { id: 'income', label: 'Revenus', icon: '💰', color: '#10b981' },
-  { id: 'transfers', label: 'Virements', icon: '↔️', color: '#0d9488' },
-  { id: 'other', label: 'Autres', icon: '❔', color: '#6b7280' }
+  { id: 'subscriptions', label: 'Abonnements', icon: IconSubscription, color: '#8b5cf6' },
+  { id: 'groceries',     label: 'Courses',     icon: IconGrocery,     color: '#22c55e' },
+  { id: 'restaurants',   label: 'Restaurants', icon: IconRestaurant,  color: '#fb923c' },
+  { id: 'transport',     label: 'Transport',   icon: IconTransport,   color: '#3b82f6' },
+  { id: 'housing',       label: 'Logement',    icon: IconHouse,       color: '#a16207' },
+  { id: 'utilities',     label: 'Factures',    icon: IconUtility,     color: '#facc15' },
+  { id: 'health',        label: 'Santé',       icon: IconHealth,      color: '#ef4444' },
+  { id: 'leisure',       label: 'Loisirs',     icon: IconLeisure,     color: '#f43f5e' },
+  { id: 'shopping',      label: 'Shopping',    icon: IconShopping,    color: '#6366f1' },
+  { id: 'income',        label: 'Revenus',     icon: IconIncome,      color: '#10b981' },
+  { id: 'transfers',     label: 'Virements',   icon: IconTransfer,    color: '#0891b2' },
+  { id: 'other',         label: 'Autres',      icon: IconOther,       color: '#64748b' }
 ]
 
 export const categoryById: Record<CategoryId, CategoryMeta> = Object.fromEntries(

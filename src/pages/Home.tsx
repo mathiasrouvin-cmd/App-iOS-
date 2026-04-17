@@ -7,6 +7,7 @@ import ImportButton from '../components/ImportButton'
 import PeriodPicker from '../components/PeriodPicker'
 import TransactionRow from '../components/TransactionRow'
 import { availableMonths, inPeriod } from '../utils/date'
+import { IconSearch, IconClose } from '../icons'
 
 export default function Home() {
   const { transactions, settings, error, clearError, setPeriod } = useStore()
@@ -59,6 +60,9 @@ export default function Home() {
         <PeriodPicker months={months} value={settings.period} onChange={setPeriod} />
 
         <div className="search-wrap">
+          <span className="search-icon">
+            <IconSearch size={18} strokeWidth={2} />
+          </span>
           <input
             type="search"
             placeholder="Rechercher une transaction…"
@@ -68,7 +72,7 @@ export default function Home() {
           />
           {query && (
             <button onClick={() => setQuery('')} className="search-clear" aria-label="Effacer">
-              ✕
+              <IconClose size={12} strokeWidth={3} />
             </button>
           )}
         </div>

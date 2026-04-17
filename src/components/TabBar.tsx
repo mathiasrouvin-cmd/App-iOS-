@@ -1,24 +1,26 @@
 import { NavLink } from 'react-router-dom'
+import type { LucideIcon } from 'lucide-react'
+import { IconWallet, IconPie, IconRepeat, IconSettings } from '../icons'
 
-const tabs: Array<{ to: string; label: string; icon: string }> = [
-  { to: '/', label: 'Compte', icon: '🏠' },
-  { to: '/analyse', label: 'Analyse', icon: '📊' },
-  { to: '/abonnements', label: 'Abos', icon: '🔁' },
-  { to: '/reglages', label: 'Réglages', icon: '⚙️' }
+const tabs: Array<{ to: string; label: string; icon: LucideIcon }> = [
+  { to: '/', label: 'Compte', icon: IconWallet },
+  { to: '/analyse', label: 'Analyse', icon: IconPie },
+  { to: '/abonnements', label: 'Abos', icon: IconRepeat },
+  { to: '/reglages', label: 'Réglages', icon: IconSettings }
 ]
 
 export default function TabBar() {
   return (
     <nav className="tabbar">
-      {tabs.map(t => (
+      {tabs.map(({ to, label, icon: Icon }) => (
         <NavLink
-          key={t.to}
-          to={t.to}
-          end={t.to === '/'}
+          key={to}
+          to={to}
+          end={to === '/'}
           className={({ isActive }) => `tab ${isActive ? 'tab-active' : ''}`}
         >
-          <span className="tab-icon">{t.icon}</span>
-          <span className="tab-label">{t.label}</span>
+          <Icon size={22} strokeWidth={2} className="tab-icon" />
+          <span className="tab-label">{label}</span>
         </NavLink>
       ))}
     </nav>

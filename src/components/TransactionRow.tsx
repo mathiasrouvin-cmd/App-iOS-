@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import type { Transaction } from '../types'
 import { categoryById } from '../types'
 import { fmtDateShort, fmtEuro } from '../format'
+import { IconChevron } from '../icons'
 
 interface Props {
   transaction: Transaction
@@ -10,11 +11,16 @@ interface Props {
 
 export default function TransactionRow({ transaction: t, showCategoryIcon = true }: Props) {
   const meta = categoryById[t.category]
+  const Icon = meta.icon
   return (
-    <Link to={`/transaction/${t.id}`} className="row" style={{ '--tile': meta.color } as React.CSSProperties}>
+    <Link
+      to={`/transaction/${t.id}`}
+      className="row"
+      style={{ '--tile': meta.color } as React.CSSProperties}
+    >
       {showCategoryIcon && (
-        <div className="icon-tile" style={{ borderRadius: '50%', width: 32, height: 32, fontSize: 14 }}>
-          {meta.icon}
+        <div className="icon-tile circle">
+          <Icon size={16} strokeWidth={2.2} />
         </div>
       )}
       <div className="row-body">
@@ -24,7 +30,9 @@ export default function TransactionRow({ transaction: t, showCategoryIcon = true
       <div className={`row-amount ${t.amount < 0 ? 'amount-neg' : 'amount-pos'}`}>
         {fmtEuro(t.amount)}
       </div>
-      <span className="chevron">›</span>
+      <span className="chevron">
+        <IconChevron size={18} strokeWidth={2.5} />
+      </span>
     </Link>
   )
 }

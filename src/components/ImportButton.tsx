@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { readFile } from '../csv'
 import { useStore } from '../store'
+import { IconUpload } from '../icons'
 
 export default function ImportButton() {
   const { importFromText } = useStore()
@@ -10,7 +11,11 @@ export default function ImportButton() {
   const onFile = async (file: File) => {
     const text = await readFile(file)
     const { added } = importFromText(text)
-    setToast(added === 0 ? 'Aucune nouvelle transaction' : `${added} transaction${added > 1 ? 's' : ''} importée${added > 1 ? 's' : ''}`)
+    setToast(
+      added === 0
+        ? 'Aucune nouvelle transaction'
+        : `${added} transaction${added > 1 ? 's' : ''} importée${added > 1 ? 's' : ''}`
+    )
     setTimeout(() => setToast(null), 2200)
   }
 
@@ -21,7 +26,9 @@ export default function ImportButton() {
         onClick={() => inputRef.current?.click()}
         aria-label="Importer un CSV"
       >
-        Importer
+        <span className="nav-btn-icon">
+          <IconUpload size={18} strokeWidth={2.2} />
+        </span>
       </button>
       <input
         ref={inputRef}

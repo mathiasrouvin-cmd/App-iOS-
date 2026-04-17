@@ -4,6 +4,7 @@ import { useStore } from '../store'
 import { categoryById } from '../types'
 import { cadenceLabel, detectSubscriptions } from '../subscriptions'
 import { fmtDateShort, fmtEuro } from '../format'
+import { IconChevron, IconRepeat } from '../icons'
 
 export default function Subscriptions() {
   const { transactions } = useStore()
@@ -20,14 +21,16 @@ export default function Subscriptions() {
 
       <div className="container">
         <div className="summary">
-          <div className="label">Coût mensuel estimé</div>
-          <div className="balance">{fmtEuro(-monthlyTotal)}</div>
-          <div className="flows">
-            <div className="flow">
-              <span className="icon">🔁</span>
+          <div className="summary-label">Coût mensuel estimé</div>
+          <div className="summary-balance">{fmtEuro(-monthlyTotal)}</div>
+          <div className="summary-flows">
+            <div className="summary-flow">
+              <div className="summary-flow-icon">
+                <IconRepeat size={16} strokeWidth={2.2} />
+              </div>
               <div>
-                <div className="caption">Paiements récurrents</div>
-                <div className="value">{subs.length}</div>
+                <div className="summary-flow-caption">Paiements récurrents</div>
+                <div className="summary-flow-value">{subs.length}</div>
               </div>
             </div>
           </div>
@@ -42,6 +45,7 @@ export default function Subscriptions() {
           ) : subs.map(s => {
             const last = s.samples[s.samples.length - 1]
             const meta = categoryById[last.category]
+            const Icon = meta.icon
             return (
               <Link
                 to={`/transaction/${last.id}`}
@@ -49,18 +53,22 @@ export default function Subscriptions() {
                 className="row"
                 style={{ '--tile': meta.color } as React.CSSProperties}
               >
-                <div className="icon-tile">{meta.icon}</div>
+                <div className="icon-tile">
+                  <Icon size={18} strokeWidth={2.2} />
+                </div>
                 <div className="row-body">
                   <div className="row-title">{last.label}</div>
                   <div className="row-subtitle">
-                    {cadenceLabel(s.cadence)} · {s.samples.length}× · dernier {fmtDateShort(s.lastSeen)}
+                    {cadenceLabel(s.cadence)} · {s.samples.length}× · {fmtDateShort(s.lastSeen)}
                   </div>
                 </div>
-                <div className="row-amount amount-neg">
-                  {fmtEuro(-s.monthlyCost)}
-                  <div className="secondary" style={{ fontSize: 11, fontWeight: 400 }}>/mois</div>
+                <div className="row-amount amount-neg" style={{ textAlign: 'right' }}>
+                  <div>{fmtEuro(-s.monthlyCost)}</div>
+                  <div className="secondary" style={{ fontSize: 11, fontWeight: 500, marginTop: 2 }}>/mois</div>
                 </div>
-                <span className="chevron">›</span>
+                <span className="chevron">
+                  <IconChevron size={18} strokeWidth={2.5} />
+                </span>
               </Link>
             )
           })}

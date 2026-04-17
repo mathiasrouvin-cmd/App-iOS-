@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../store'
 import { CATEGORIES, type CategoryId } from '../types'
 import { isWebAuthnSupported, registerCredential } from '../lock'
+import { IconAdd, IconFingerprint, IconTrash } from '../icons'
 
 export default function Settings() {
   const {
@@ -19,7 +20,7 @@ export default function Settings() {
     if (!kw) return
     addRule(kw, newCategory)
     setNewKeyword('')
-    setToast(`Règle ajoutée. Relance « Reclasser tout » pour l'appliquer.`)
+    setToast(`Règle ajoutée. Touche « Reclasser tout » pour l'appliquer.`)
     setTimeout(() => setToast(null), 2500)
   }
 
@@ -53,7 +54,10 @@ export default function Settings() {
         <div className="section-title">Sécurité</div>
         <div className="field-group">
           <div className="field">
-            <span className="k">Verrouillage Face ID / Touch ID</span>
+            <span className="k" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <IconFingerprint size={18} strokeWidth={2} />
+              Verrouillage biométrique
+            </span>
             {settings.lockEnabled ? (
               <button className="danger" onClick={() => disableLock()}>Désactiver</button>
             ) : (
@@ -71,38 +75,46 @@ export default function Settings() {
 
         <div className="section-title">Budgets mensuels</div>
         <div className="field-group">
-          {CATEGORIES.filter(c => c.id !== 'income' && c.id !== 'transfers').map(c => (
-            <div className="field" key={c.id}>
-              <span className="k" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ color: c.color, fontSize: 16 }}>{c.icon}</span>
-                {c.label}
-              </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="10"
-                  value={settings.budgets[c.id] ?? ''}
-                  onChange={e => {
-                    const v = e.target.value
-                    setBudget(c.id, v === '' ? null : Number(v))
-                  }}
-                  placeholder="—"
-                  className="budget-input"
-                />
-                <span className="secondary">€</span>
+          {CATEGORIES.filter(c => c.id !== 'income' && c.id !== 'transfers').map(c => {
+            const Icon = c.icon
+            return (
+              <div className="field" key={c.id}>
+                <span className="k" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span
+                    className="icon-tile circle"
+                    style={{ background: c.color, width: 28, height: 28 }}
+                  >
+                    <Icon size={14} strokeWidth={2.2} />
+                  </span>
+                  {c.label}
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="10"
+                    value={settings.budgets[c.id] ?? ''}
+                    onChange={e => {
+                      const v = e.target.value
+                      setBudget(c.id, v === '' ? null : Number(v))
+                    }}
+                    placeholder="—"
+                    className="budget-input"
+                  />
+                  <span className="secondary">€</span>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
         <div className="section-hint">
-          Laisse vide pour pas de limite. Affiché sur l'accueil avec barre de progression.
+          Laisse vide pour pas de limite. Progression affichée sur l'accueil (sauf vue « Tout »).
         </div>
 
         <div className="section-title">Règles personnalisées</div>
         <div className="field-group">
-          <div className="field rule-editor">
+          <div className="rule-editor">
             <input
               type="text"
               placeholder="mot-clé (ex: auchan)"
@@ -116,22 +128,39 @@ export default function Settings() {
               className="rule-select"
             >
               {CATEGORIES.map(c => (
-                <option key={c.id} value={c.id}>{c.icon} {c.label}</option>
+                <option key={c.id} value={c.id}>{c.label}</option>
               ))}
             </select>
-            <button onClick={submitRule}>Ajouter</button>
+            <button onClick={submitRule} className="rule-add-btn" aria-label="Ajouter">
+              <IconAdd size={18} strokeWidth={2.6} />
+            </button>
           </div>
           {settings.rules.length === 0 && (
             <div className="field"><span className="secondary">Aucune règle.</span></div>
           )}
           {settings.rules.map(r => {
             const meta = CATEGORIES.find(c => c.id === r.category)
+            const Icon = meta?.icon
             return (
               <div className="field" key={r.id}>
-                <span className="k">
-                  {meta?.icon} <b>{r.keyword}</b> → {meta?.label}
+                <span className="k" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {Icon && (
+                    <span
+                      className="icon-tile circle"
+                      style={{ background: meta!.color, width: 26, height: 26 }}
+                    >
+                      <Icon size={12} strokeWidth={2.4} />
+                    </span>
+                  )}
+                  <span><b>{r.keyword}</b> → {meta?.label}</span>
                 </span>
-                <button className="danger" onClick={() => deleteRule(r.id)}>Supprimer</button>
+                <button
+                  className="danger"
+                  onClick={() => deleteRule(r.id)}
+                  aria-label="Supprimer"
+                >
+                  <IconTrash size={16} strokeWidth={2} />
+                </button>
               </div>
             )
           })}
@@ -139,14 +168,20 @@ export default function Settings() {
 
         <div className="section-title">Actions</div>
         <div className="field-group">
-          <button className="field" style={{ color: 'var(--accent)', width: '100%' }}
-                  onClick={reclassify}>
+          <button
+            className="field"
+            style={{ color: 'var(--accent)', fontWeight: 500 }}
+            onClick={reclassify}
+          >
             Reclasser toutes les transactions
           </button>
-          <button className="field danger" style={{ width: '100%' }}
-                  onClick={() => {
-                    if (confirm('Supprimer toutes les transactions ?')) reset()
-                  }}>
+          <button
+            className="field danger"
+            style={{ fontWeight: 500 }}
+            onClick={() => {
+              if (confirm('Supprimer toutes les transactions ?')) reset()
+            }}
+          >
             Effacer toutes les transactions
           </button>
         </div>
