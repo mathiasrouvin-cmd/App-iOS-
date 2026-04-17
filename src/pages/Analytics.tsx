@@ -6,7 +6,9 @@ import { fmtEuro } from '../format'
 import PeriodPicker from '../components/PeriodPicker'
 import PieChart from '../components/PieChart'
 import BarChart from '../components/BarChart'
+import ScoreRing from '../components/ScoreRing'
 import { IconTrendDown, IconTrendUp, IconAvg } from '../icons'
+import { computeHealthScore } from '../healthScore'
 
 export default function Analytics() {
   const { transactions, settings, setPeriod } = useStore()
@@ -83,6 +85,11 @@ export default function Analytics() {
 
   const TopIcon = topCategory?.icon
 
+  const health = useMemo(
+    () => computeHealthScore(transactions, settings.budgets),
+    [transactions, settings.budgets]
+  )
+
   return (
     <div className="screen with-tabbar">
       <div className="nav">
@@ -92,6 +99,78 @@ export default function Analytics() {
       </div>
 
       <div className="container">
+        {health && (
+          <div className="health-card">
+            <div className="health-ring-wrap">
+              <ScoreRing score={health.total} color={health.color} />
+              <div className="health-ring-center">
+                <div className="health-score">{health.total}</div>
+                <div className="health-score-max">sur 100</div>
+              </div>
+            </div>
+            <div className="health-meta">
+              <div className="health-label" style={{ color: health.color }}>
+                {health.label}
+              </div>
+              <div className="health-caption secondary">
+                Santé financière · {health.months} mois analysés
+              </div>
+              <ul className="health-breakdown">
+                <li>
+                  <span className="hb-label">Épargne</span>
+                  <span className="hb-bar">
+                    <span className="hb-fill" style={{
+                      width: `${(health.savingsRate.score / health.savingsRate.max) * 100}%`,
+                      background: health.color
+                    }} />
+                  </span>
+                  <span className="hb-pts">{health.savingsRate.score}/{health.savingsRate.max}</span>
+                </li>
+                <li>
+                  <span className="hb-label">Abos</span>
+                  <span className="hb-bar">
+                    <span className="hb-fill" style={{
+                      width: `${(health.subscriptionLoad.score / health.subscriptionLoad.max) * 100}%`,
+                      background: health.color
+                    }} />
+                  </span>
+                  <span className="hb-pts">{health.subscriptionLoad.score}/{health.subscriptionLoad.max}</span>
+                </li>
+                <li>
+                  <span className="hb-label">Régularité</span>
+                  <span className="hb-bar">
+                    <span className="hb-fill" style={{
+                      width: `${(health.regularity.score / health.regularity.max) * 100}%`,
+                      background: health.color
+                    }} />
+                  </span>
+                  <span className="hb-pts">{health.regularity.score}/{health.regularity.max}</span>
+                </li>
+                <li>
+                  <span className="hb-label">Budgets</span>
+                  <span className="hb-bar">
+                    <span className="hb-fill" style={{
+                      width: `${(health.budgetDiscipline.score / health.budgetDiscipline.max) * 100}%`,
+                      background: health.color
+                    }} />
+                  </span>
+                  <span className="hb-pts">{health.budgetDiscipline.score}/{health.budgetDiscipline.max}</span>
+                </li>
+                <li>
+                  <span className="hb-label">Diversité</span>
+                  <span className="hb-bar">
+                    <span className="hb-fill" style={{
+                      width: `${(health.diversity.score / health.diversity.max) * 100}%`,
+                      background: health.color
+                    }} />
+                  </span>
+                  <span className="hb-pts">{health.diversity.score}/{health.diversity.max}</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        )}
+
         <PeriodPicker months={months} value={settings.period} onChange={setPeriod} />
 
         <div className="stats-row">

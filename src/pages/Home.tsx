@@ -6,8 +6,12 @@ import CategoryRow from '../components/CategoryRow'
 import ImportButton from '../components/ImportButton'
 import PeriodPicker from '../components/PeriodPicker'
 import TransactionRow from '../components/TransactionRow'
-import { availableMonths, inPeriod } from '../utils/date'
+import ForecastCard from '../components/ForecastCard'
+import MonthlySummaryCard from '../components/MonthlySummaryCard'
+import { availableMonths, currentMonthKey, inPeriod } from '../utils/date'
 import { IconSearch, IconClose } from '../icons'
+import { forecastCurrentMonth } from '../forecast'
+import { buildMonthlySummary } from '../summary'
 
 export default function Home() {
   const { transactions, settings, error, clearError, setPeriod } = useStore()
@@ -46,6 +50,14 @@ export default function Home() {
 
   const showBudgets = settings.period !== 'all'
 
+  const forecast = useMemo(() => forecastCurrentMonth(transactions), [transactions])
+
+  const summaryMonth = settings.period === 'all' ? currentMonthKey() : settings.period
+  const monthlySummary = useMemo(
+    () => buildMonthlySummary(transactions, summaryMonth),
+    [transactions, summaryMonth]
+  )
+
   return (
     <div className="screen with-tabbar">
       <div className="nav">
@@ -56,6 +68,12 @@ export default function Home() {
 
       <div className="container">
         <SummaryCard balance={balance} income={income} expenses={expenses} />
+
+        {forecast && (
+          <div style={{ marginTop: 12 }}>
+            <ForecastCard forecast={forecast} />
+          </div>
+        )}
 
         <PeriodPicker months={months} value={settings.period} onChange={setPeriod} />
 
@@ -76,6 +94,10 @@ export default function Home() {
             </button>
           )}
         </div>
+
+        {!query && monthlySummary && (
+          <MonthlySummaryCard summary={monthlySummary} />
+        )}
 
         {query ? (
           <>
