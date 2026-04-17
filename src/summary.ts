@@ -43,7 +43,12 @@ function variableExpensesFor(
   fixedIds: Set<string>
 ): { sum: number; txs: Transaction[] } {
   const txs = transactions.filter(
-    t => monthKey(t.date) === month && t.amount < 0 && !fixedIds.has(t.id)
+    t =>
+      monthKey(t.date) === month &&
+      t.amount < 0 &&
+      !fixedIds.has(t.id) &&
+      // Transfers (to own savings, P2P, etc.) move money but are not spending.
+      t.category !== 'transfers'
   )
   return {
     sum: txs.reduce((s, t) => s + Math.abs(t.amount), 0),

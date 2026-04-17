@@ -54,7 +54,11 @@ function monthlyFromCadence(amount: number, cadence: Subscription['cadence']): n
 }
 
 export function detectSubscriptions(transactions: Transaction[]): Subscription[] {
-  const expenses = transactions.filter(t => t.amount < 0)
+  // Transfers (to own savings, between own accounts, to friends) are not
+  // subscriptions — exclude them even if recurring monthly.
+  const expenses = transactions.filter(
+    t => t.amount < 0 && t.category !== 'transfers'
+  )
   const groups = new Map<string, Transaction[]>()
   for (const t of expenses) {
     const key = extractMerchant(t.label)
