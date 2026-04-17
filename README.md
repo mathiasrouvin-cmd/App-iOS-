@@ -1,55 +1,47 @@
-# BankingApp — Gestion de compte iOS
+# Mon compte — PWA de gestion de compte
 
-App iOS native (SwiftUI, iOS 17+) pour visualiser un compte bancaire à partir d'un import CSV,
-avec classification automatique des transactions (Abonnements, Courses, Transport, Logement, etc.)
-et écran détaillé par catégorie.
+App web installable (PWA) pour visualiser un compte bancaire à partir d'un import CSV,
+avec classification automatique (Abonnements, Courses, Transport…), écran détaillé par
+catégorie et par transaction. **Aucune installation d'Xcode nécessaire.**
+
+## Utilisation sur iPhone
+
+1. Ouvre l'URL déployée dans **Safari** (pas Chrome — l'ajout à l'écran d'accueil est une feature Safari).
+2. Tape sur le bouton **Partager** → **Sur l'écran d'accueil**.
+3. L'app apparaît comme une vraie app iOS, en plein écran, sans barre Safari.
+4. Les données sont stockées en `localStorage` sur ton téléphone — rien ne part en ligne.
+
+## Déploiement
+
+Le workflow `.github/workflows/deploy-pages.yml` publie l'app sur GitHub Pages à chaque push
+sur `main` ou `claude/ios-banking-app-oWF0W`.
+
+Pour l'activer :
+1. Va dans **Settings → Pages** du repo.
+2. Source : **GitHub Actions**.
+3. Attends que le workflow passe au vert — l'URL sera `https://<user>.github.io/App-iOS-/`.
+
+## Dev local
+
+```bash
+npm install
+npm run dev        # http://localhost:5173/App-iOS-/
+npm run build      # génère dist/
+npm run preview    # serve le build de prod
+```
 
 ## Fonctionnalités
 
-- **Import CSV** : formats `;` ou `,`, détection automatique du séparateur et de l'encodage UTF-8 / ISO-8859-1.
-  Colonnes attendues : `date`, `libellé` (ou `label` / `description`), `montant` (ou `amount`).
-- **Classification automatique** : règles basées sur des mots-clés FR (Netflix, Spotify → Abonnements ;
-  Carrefour, Monoprix → Courses ; SNCF, Uber → Transport ; etc.).
-- **Écran principal** : solde + total revenus / dépenses, liste des catégories présentes.
-- **Détail par catégorie** : total, nombre de transactions, liste détaillée.
-- **Détail par transaction** : modification manuelle de la catégorie.
-- **Jeu de données d'exemple** chargé au premier lancement (`BankingApp/Resources/sample.csv`).
-
-## Structure
-
-```
-BankingApp/
-  BankingAppApp.swift        # Entrée @main SwiftUI
-  Models/
-    Transaction.swift
-    Category.swift
-  Services/
-    CSVImporter.swift        # Parsing CSV robuste
-    TransactionClassifier.swift
-    TransactionStore.swift   # ObservableObject, agrégations
-  Views/
-    ContentView.swift
-    SummaryCard.swift
-    CategoryRow.swift
-    CategoryDetailView.swift
-    TransactionRow.swift
-    TransactionDetailView.swift
-  Resources/sample.csv
-  Assets.xcassets
-```
-
-## Comment faire tourner l'app sans Xcode local
-
-Construire une app iOS requiert macOS + Xcode (Apple impose cette contrainte).
-Si tu n'as pas Xcode, voici les options :
-
-1. **GitHub Actions (inclus dans ce repo)** — `.github/workflows/ios-build.yml` compile l'app
-   sur un runner `macos-14` à chaque push. Tu auras la preuve que le code compile sans installer Xcode.
-2. **Mac emprunté / cloud Mac** — services comme MacStadium, MacinCloud, ou un Mac de collègue.
-   Clone le repo, ouvre `BankingApp.xcodeproj`, ⌘R pour lancer le simulateur iOS.
-3. **Swift Playgrounds sur iPad** — peut ouvrir des apps SwiftUI simples ; possible mais nécessite
-   quelques ajustements manuels d'import.
-4. **Xcode Cloud** — si tu as un compte Apple Developer, tu peux builder et tester dans le cloud.
+- **Import CSV** : séparateur `;`, `,` ou tab détecté automatiquement. Colonnes attendues :
+  `date`, `libellé` (ou `label` / `description` / `intitulé` / `motif`), `montant`
+  (ou `amount`, ou `débit`/`crédit` séparés). Montants en `1234,56` ou `1234.56` ou `1 234,56 €`.
+- **Classification auto** : règles par mots-clés FR (Netflix/Spotify → Abonnements,
+  Carrefour/Monoprix → Courses, SNCF/Uber → Transport, EDF/Free → Factures, etc.).
+- **Accueil** : solde, revenus, dépenses ; liste des catégories avec totaux, cliquables.
+- **Détail catégorie** : total, nombre de transactions, liste chronologique.
+- **Détail transaction** : date, libellé, montant, re-catégorisation manuelle, suppression.
+- **Offline** : service worker via `vite-plugin-pwa`, tout fonctionne sans réseau.
+- **Dark mode** : automatique selon les réglages système.
 
 ## Format CSV attendu
 
@@ -60,4 +52,32 @@ date;libelle;montant
 2026-04-14;CARREFOUR PARIS 11;-58.42
 ```
 
-Montants négatifs = dépenses. Le séparateur décimal `,` est aussi accepté (`-15,99`).
+Montants négatifs = dépenses. Un jeu de données d'exemple est chargé automatiquement
+la première fois (voir `public/sample.csv`).
+
+## Structure
+
+```
+src/
+  main.tsx            # entrée React + enregistrement du service worker
+  App.tsx             # routes (HashRouter)
+  store.tsx           # Context + localStorage
+  csv.ts              # parsing CSV
+  classifier.ts       # règles de classification
+  types.ts            # types + catégories (label/icône/couleur)
+  format.ts           # formats € et dates
+  pages/
+    Home.tsx
+    CategoryDetail.tsx
+    TransactionDetail.tsx
+  components/
+    SummaryCard.tsx
+    CategoryRow.tsx
+    TransactionRow.tsx
+    ImportButton.tsx
+  index.css
+public/
+  icon.svg
+  apple-touch-icon.png
+  sample.csv
+```

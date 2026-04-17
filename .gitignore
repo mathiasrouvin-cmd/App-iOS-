@@ -1,25 +1,26 @@
-## macOS
+## OS
 .DS_Store
 
-## Xcode
-build/
-DerivedData/
-*.xcuserstate
-*.xcscmblueprint
-*.xccheckout
-xcuserdata/
-*.xcworkspace/xcuserdata/
-*.xcodeproj/xcuserdata/
-*.xcodeproj/project.xcworkspace/xcuserdata/
-*.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+## Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-## Swift Package Manager
-.build/
-Packages/
-Package.pins
-Package.resolved
-.swiftpm/
+## Vite
+dist/
+dist-ssr/
+*.local
 
-## CocoaPods / Carthage (si utilisés plus tard)
-Pods/
-Carthage/Build/
+## TypeScript incremental build
+*.tsbuildinfo
+
+## Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
