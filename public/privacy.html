@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy — banking-pwa</title>
+  <style>
+    body { font: 16px/1.55 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+           max-width: 720px; margin: 24px auto; padding: 0 20px; color: #111; background: #f7f7f8; }
+    h1 { font-size: 28px; letter-spacing: -0.02em; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    p, li { color: #333; }
+    code { background: #eee; padding: 1px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Privacy policy — banking-pwa</h1>
+  <p><strong>banking-pwa</strong> is a personal-use Progressive Web App that
+    displays the owner's bank transactions with automatic categorisation.</p>
+
+  <h2>Data collected</h2>
+  <ul>
+    <li>Bank transactions (date, label, amount) imported either from a CSV
+      file or fetched via the Enable Banking API (PSD2 account information
+      service).</li>
+    <li>User-defined settings (budgets, classification rules, period).</li>
+  </ul>
+
+  <h2>How it is stored</h2>
+  <ul>
+    <li>All personal data is stored <strong>locally on the user's device</strong>
+      (browser <code>localStorage</code>).</li>
+    <li>Short-lived API tokens (access/session tokens issued by Enable Banking)
+      are cached in a Cloudflare Worker KV namespace operated by the user, only
+      for the time required to complete API calls.</li>
+    <li>No analytics, no tracking, no third-party scripts, no cookies beyond
+      what is strictly required for the PWA to function.</li>
+  </ul>
+
+  <h2>Data sharing</h2>
+  <p>No data is shared with any third party other than the APIs the user
+    explicitly authorises (Enable Banking and the corresponding bank under the
+    PSD2 framework).</p>
+
+  <h2>Data retention</h2>
+  <p>Data is retained until the user clears it from the app ("Effacer toutes les
+    transactions" in Settings) or clears browser storage.</p>
+
+  <h2>User rights</h2>
+  <p>The user is the sole operator and data controller of this application.
+    They can access, modify and delete all data at any time directly from the
+    app interface.</p>
+
+  <h2>Contact</h2>
+  <p>mathiasrouvin@gmail.com</p>
+</body>
+</html>
