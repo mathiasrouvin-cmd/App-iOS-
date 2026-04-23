@@ -4,7 +4,7 @@ import {
   createLink, createSession, fetchAccounts, fetchTransactions, listInstitutions, ping,
   rawToTransaction, type Institution
 } from '../sync'
-import { IconAlert, IconRepeat, IconUpload } from '../icons'
+import { IconAlert, IconRepeat, IconUpload, IconChevron } from '../icons'
 
 type Stage = 'idle' | 'testing' | 'picking' | 'linking' | 'exchanging' | 'syncing'
 
@@ -23,6 +23,7 @@ export default function BankSyncSection() {
   const [filter, setFilter] = useState('')
   const [lastSyncAdded, setLastSyncAdded] = useState<number | null>(null)
   const [info, setInfo] = useState<string | null>(null)
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   const cfg = useMemo(() => ({ backendUrl: url, authToken: token }), [url, token])
   const configured = url.trim().length > 0 && token.trim().length > 0
@@ -30,8 +31,6 @@ export default function BankSyncSection() {
 
   const persist = () => setSyncBackend(url, token)
 
-  // When App.tsx picks up ?code= on page load it stashes the code in
-  // sessionStorage, navigates here, and we exchange it for a session.
   useEffect(() => {
     const code = sessionStorage.getItem('banking:code')
     if (!code || !configured) return
@@ -51,7 +50,7 @@ export default function BankSyncSection() {
         res.session_id,
         res.accounts
       )
-      setInfo(`Compte lié : ${res.accounts.length} compte(s). Tape « Synchroniser ».`)
+      setInfo(`Compte lié : ${res.accounts.length} compte(s).`)
     } catch (e) {
       setError(errorString(e))
     }
@@ -65,7 +64,7 @@ export default function BankSyncSection() {
     try {
       const ok = await ping(cfg)
       setConnOk(ok)
-      if (!ok) setError('Le worker répond mais refuse le jeton. Vérifie APP_SECRET.')
+      if (!ok) setError('Le worker répond mais refuse le jeton.')
     } catch (e) {
       setConnOk(false)
       setError(errorString(e))
@@ -134,100 +133,130 @@ export default function BankSyncSection() {
       : institutions
   }, [institutions, filter])
 
+  // -------------------------------------------------------- render variants
+
+  const SetupInputs = (
+    <>
+      <div className="field" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+        <span className="k">URL du worker</span>
+        <input
+          type="url"
+          placeholder="https://banking-sync.xxx.workers.dev"
+          value={url}
+          onChange={e => setUrl(e.target.value)}
+          onBlur={persist}
+          className="rule-input"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+        />
+      </div>
+      <div className="field" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+        <span className="k">Jeton d'auth (APP_SECRET)</span>
+        <input
+          type="password"
+          placeholder="••••••••••"
+          value={token}
+          onChange={e => setToken(e.target.value)}
+          onBlur={persist}
+          className="rule-input"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+        />
+      </div>
+      <div className="field">
+        <span className="k">Connexion</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {connOk === true && <span className="amount-pos">OK</span>}
+          {connOk === false && <span className="amount-neg">Échec</span>}
+          <button onClick={test} disabled={!configured || stage === 'testing'}>
+            {stage === 'testing' ? 'Test…' : 'Tester'}
+          </button>
+        </div>
+      </div>
+    </>
+  )
+
   return (
     <>
       <div className="section-title">Synchronisation banque</div>
+
       <div className="field-group">
-        <div className="field" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
-          <span className="k">URL du worker</span>
-          <input
-            type="url"
-            placeholder="https://banking-sync.xxx.workers.dev"
-            value={url}
-            onChange={e => setUrl(e.target.value)}
-            onBlur={persist}
-            className="rule-input"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-          />
-        </div>
-        <div className="field" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
-          <span className="k">Jeton d'auth (APP_SECRET)</span>
-          <input
-            type="password"
-            placeholder="••••••••••"
-            value={token}
-            onChange={e => setToken(e.target.value)}
-            onBlur={persist}
-            className="rule-input"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-          />
-        </div>
-
-        <div className="field">
-          <span className="k">Connexion</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {connOk === true && <span className="amount-pos">OK</span>}
-            {connOk === false && <span className="amount-neg">Échec</span>}
-            <button
-              onClick={test}
-              disabled={!configured || stage === 'testing'}
-            >
-              {stage === 'testing' ? 'Test…' : 'Tester'}
-            </button>
-          </div>
-        </div>
-
-        {!linked ? (
-          <button
-            className="field"
-            style={{ color: 'var(--accent)', fontWeight: 500, justifyContent: 'center' }}
-            onClick={startLink}
-            disabled={!configured || stage !== 'idle'}
-          >
-            <IconUpload size={16} strokeWidth={2.2} style={{ marginRight: 8 }} />
-            {stage === 'exchanging' ? 'Finalisation…' : 'Lier une banque'}
-          </button>
-        ) : (
+        {linked ? (
           <>
-            <div className="field">
-              <span className="k">Comptes liés</span>
-              <span className="v">{settings.sync.accounts.length}</span>
-            </div>
-            {settings.sync.lastSync && (
-              <div className="field">
-                <span className="k">Dernière synchro</span>
+            <div className="field" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+              <span className="k">Statut</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span className="v">
+                  <span className="amount-pos">●</span>{' '}
+                  Banque liée · {settings.sync.accounts.length} compte
+                  {settings.sync.accounts.length > 1 ? 's' : ''}
+                </span>
+              </div>
+              {settings.sync.lastSync && (
+                <span className="secondary" style={{ fontSize: 13 }}>
+                  Dernière synchro&nbsp;:&nbsp;
                   {new Date(settings.sync.lastSync).toLocaleString('fr-FR', {
                     day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
                   })}
                 </span>
-              </div>
-            )}
+              )}
+            </div>
+
             <button
               className="field"
-              style={{ color: 'var(--accent)', fontWeight: 500, justifyContent: 'center' }}
+              style={{ color: 'var(--accent)', fontWeight: 600, justifyContent: 'center' }}
               onClick={sync}
               disabled={stage === 'syncing'}
             >
-              <IconRepeat size={16} strokeWidth={2.2} style={{ marginRight: 8 }} />
+              <IconRepeat size={16} strokeWidth={2.4} style={{ marginRight: 8 }} />
               {stage === 'syncing' ? 'Synchronisation…' : 'Synchroniser maintenant'}
             </button>
+
             <button
-              className="field danger"
-              style={{ fontWeight: 500 }}
-              onClick={() => {
-                if (confirm('Délier la banque ? (Les transactions déjà importées restent.)')) {
-                  disconnectSync()
-                  setLastSyncAdded(null)
-                  setInfo(null)
-                }
-              }}
+              className="field"
+              style={{ justifyContent: 'space-between', color: 'var(--text-secondary)' }}
+              onClick={() => setShowAdvanced(v => !v)}
             >
-              Délier la banque
+              <span>Réglages avancés</span>
+              <IconChevron
+                size={16}
+                strokeWidth={2.4}
+                style={{ transform: showAdvanced ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}
+              />
+            </button>
+
+            {showAdvanced && (
+              <>
+                {SetupInputs}
+                <button
+                  className="field danger"
+                  style={{ fontWeight: 500 }}
+                  onClick={() => {
+                    if (confirm('Délier la banque ? (Les transactions déjà importées restent.)')) {
+                      disconnectSync()
+                      setLastSyncAdded(null)
+                      setInfo(null)
+                    }
+                  }}
+                >
+                  Délier la banque
+                </button>
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            {SetupInputs}
+            <button
+              className="field"
+              style={{ color: 'var(--accent)', fontWeight: 600, justifyContent: 'center' }}
+              onClick={startLink}
+              disabled={!configured || stage !== 'idle'}
+            >
+              <IconUpload size={16} strokeWidth={2.2} style={{ marginRight: 8 }} />
+              {stage === 'exchanging' ? 'Finalisation…' : 'Lier une banque'}
             </button>
           </>
         )}
@@ -265,10 +294,13 @@ export default function BankSyncSection() {
           </div>
         )}
       </div>
-      <div className="section-hint">
-        Worker Cloudflare (gratuit) + Enable Banking. Voir <code>worker/README.md</code>
-        pour le déploiement.
-      </div>
+
+      {!linked && (
+        <div className="section-hint">
+          Worker Cloudflare + Enable Banking. Voir <code>worker/README.md</code>
+          pour le déploiement.
+        </div>
+      )}
 
       {stage === 'picking' && (
         <div className="inst-overlay" onClick={() => setStage('idle')}>
