@@ -147,7 +147,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setTransactions(prev => prev.filter(t => t.id !== id))
   }, [])
 
-  const reset = useCallback(() => setTransactions([]), [])
+  const reset = useCallback(() => {
+    setTransactions([])
+    // Also clear lastSync so the next sync fetches the full 90-day window
+    // instead of "nothing new since the date I just wiped".
+    setSettings(s => ({ ...s, sync: { ...s.sync, lastSync: null } }))
+  }, [])
   const clearError = useCallback(() => setError(null), [])
 
   const reclassifyAll = useCallback((): number => {
