@@ -2,6 +2,13 @@ name = "banking-sync"
 main = "worker.js"
 compatibility_date = "2024-09-01"
 
-# KV binding, APP_ID, PWA_URL and the 2 secrets (APP_SECRET,
-# APP_PRIVATE_KEY) are configured via the Cloudflare dashboard,
-# not here, so this file stays portable.
+# Declared here so Git-triggered deploys don't wipe them.
+# Secrets (APP_SECRET, APP_PRIVATE_KEY) are managed separately by
+# Cloudflare and survive deploys; they are NOT in this file.
+[vars]
+APP_ID = "94ff9e4f-8116-4809-8d4e-0527cc6b2503"
+PWA_URL = "https://mathiasrouvin-cmd.github.io/App-iOS-/"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "63dce13351ee4caba9f2a44fe0f3d0bd"
