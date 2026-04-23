@@ -183,9 +183,23 @@ async function debug(env) {
     })
     const text = await r.text()
     out.eb_application_status = r.status
-    out.eb_application_body = text.slice(0, 800)
+    out.eb_application_body = text.slice(0, 400)
   } catch (e) {
     out.eb_error = String((e && e.message) || e)
+  }
+  try {
+    const r = await fetch(`${EB_BASE}/aspsps?country=FR`, {
+      headers: {
+        Authorization: `Bearer ${await signJwt(env)}`,
+        Accept: 'application/json'
+      }
+    })
+    const text = await r.text()
+    out.eb_aspsps_status = r.status
+    out.eb_aspsps_length = text.length
+    out.eb_aspsps_preview = text.slice(0, 400)
+  } catch (e) {
+    out.eb_aspsps_error = String((e && e.message) || e)
   }
   return json(out)
 }
