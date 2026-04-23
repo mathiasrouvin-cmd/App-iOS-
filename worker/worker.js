@@ -40,6 +40,7 @@ export default {
 
     try {
       if (url.pathname === '/api/ping') return json({ ok: true })
+      if (url.pathname === '/api/debug') return debug(env)
       if (url.pathname === '/api/institutions') return listInstitutions(url, env)
       if (url.pathname === '/api/link' && request.method === 'POST') return createLink(request, env)
       if (url.pathname === '/api/session' && request.method === 'POST') return createSession(request, env)
@@ -145,6 +146,39 @@ async function listInstitutions(url, env) {
     country: a.country,
     logo: a.logo
   })))
+}
+
+async function debug(env) {
+  const out = { checks: {} }
+  try {
+    if (!env.APP_ID) throw new Error('APP_ID missing')
+    if (!env.APP_PRIVATE_KEY) throw new Error('APP_PRIVATE_KEY missing')
+    out.checks.has_app_id = true
+    out.checks.has_private_key = true
+    out.checks.app_id = env.APP_ID
+    out.checks.pem_length = env.APP_PRIVATE_KEY.length
+    out.checks.pem_starts = env.APP_PRIVATE_KEY.slice(0, 40)
+    const jwt = await signJwt(env)
+    out.checks.jwt_head = jwt.slice(0, 40) + '…'
+  } catch (e) {
+    out.checks.signing_error = String((e && e.message) || e)
+    return json(out, 500)
+  }
+  try {
+    const r = await fetch(`${EB_BASE}/aspsps?country=FR`, {
+      headers: {
+        Authorization: `Bearer ${await signJwt(env)}`,
+        Accept: 'application/json'
+      }
+    })
+    const text = await r.text()
+    out.eb_status = r.status
+    out.eb_body_preview = text.slice(0, 600)
+    try { out.eb_json_keys = Object.keys(JSON.parse(text)) } catch { /* not json */ }
+  } catch (e) {
+    out.eb_error = String((e && e.message) || e)
+  }
+  return json(out)
 }
 
 async function createLink(request, env) {

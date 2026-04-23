@@ -300,7 +300,10 @@ export default function BankSyncSection() {
                   <span>{inst.name}</span>
                 </button>
               ))}
-              {filteredInsts.length === 0 && (
+              {filteredInsts.length === 0 && institutions.length === 0 && (
+                <div className="empty" style={{ padding: 20 }}>Chargement…</div>
+              )}
+              {filteredInsts.length === 0 && institutions.length > 0 && (
                 <div className="empty" style={{ padding: 20 }}>Aucun résultat.</div>
               )}
             </div>
