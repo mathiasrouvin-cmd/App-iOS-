@@ -34,6 +34,13 @@ export default {
       return new Response(null, { status: 204, headers: CORS })
     }
 
+    // Temporary unauthenticated debug endpoint so the owner can open it in
+    // Safari without a Bearer header. Remove when sync works.
+    if (url.pathname === '/api/debug-open') {
+      try { return await debug(env) }
+      catch (e) { return json({ error: String((e && e.message) || e) }, 500) }
+    }
+
     if (!checkAuth(request, env.APP_SECRET)) {
       return json({ error: 'unauthorized' }, 401)
     }
