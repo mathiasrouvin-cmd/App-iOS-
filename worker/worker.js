@@ -78,10 +78,12 @@ function b64url(bytesOrBuf) {
 }
 
 function pemToArrayBuffer(pem) {
+  // Strip BEGIN/END markers, and then keep only valid base64 chars to be
+  // safe against invisible characters like BOM, NBSP, line separators, etc.
   const b64 = pem
     .replace(/-----BEGIN [^-]+-----/g, '')
     .replace(/-----END [^-]+-----/g, '')
-    .replace(/\s+/g, '')
+    .replace(/[^A-Za-z0-9+/=]/g, '')
   const bin = atob(b64)
   const buf = new ArrayBuffer(bin.length)
   const view = new Uint8Array(buf)
@@ -165,23 +167,23 @@ async function debug(env) {
     out.checks.app_id = env.APP_ID
     out.checks.pem_length = env.APP_PRIVATE_KEY.length
     out.checks.pem_starts = env.APP_PRIVATE_KEY.slice(0, 40)
+    out.checks.pem_ends = env.APP_PRIVATE_KEY.slice(-40)
     const jwt = await signJwt(env)
-    out.checks.jwt_head = jwt.slice(0, 40) + '…'
+    out.checks.full_jwt = jwt
   } catch (e) {
     out.checks.signing_error = String((e && e.message) || e)
     return json(out, 500)
   }
   try {
-    const r = await fetch(`${EB_BASE}/aspsps?country=FR`, {
+    const r = await fetch(`${EB_BASE}/application`, {
       headers: {
         Authorization: `Bearer ${await signJwt(env)}`,
         Accept: 'application/json'
       }
     })
     const text = await r.text()
-    out.eb_status = r.status
-    out.eb_body_preview = text.slice(0, 600)
-    try { out.eb_json_keys = Object.keys(JSON.parse(text)) } catch { /* not json */ }
+    out.eb_application_status = r.status
+    out.eb_application_body = text.slice(0, 800)
   } catch (e) {
     out.eb_error = String((e && e.message) || e)
   }
