@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '../store'
 import {
-  createLink, fetchAccounts, fetchTransactions, listInstitutions, ping,
+  createLink, createSession, fetchAccounts, fetchTransactions, listInstitutions, ping,
   rawToTransaction, type Institution
 } from '../sync'
 import { IconAlert, IconRepeat, IconUpload } from '../icons'
 
-type Stage = 'idle' | 'testing' | 'picking' | 'linking' | 'syncing'
+type Stage = 'idle' | 'testing' | 'picking' | 'linking' | 'exchanging' | 'syncing'
 
 export default function BankSyncSection() {
   const {
@@ -22,39 +22,40 @@ export default function BankSyncSection() {
   const [institutions, setInstitutions] = useState<Institution[]>([])
   const [filter, setFilter] = useState('')
   const [lastSyncAdded, setLastSyncAdded] = useState<number | null>(null)
+  const [info, setInfo] = useState<string | null>(null)
 
-  const cfg = useMemo(
-    () => ({ backendUrl: url, authToken: token }),
-    [url, token]
-  )
+  const cfg = useMemo(() => ({ backendUrl: url, authToken: token }), [url, token])
   const configured = url.trim().length > 0 && token.trim().length > 0
   const linked = settings.sync.accounts.length > 0
 
-  // Persist edits to backend URL + token when user leaves the input.
   const persist = () => setSyncBackend(url, token)
 
-  // When returning from the bank link redirect, we land with `?ok=1` in
-  // the hash — App.tsx routes to /link-callback which flips a flag, then
-  // we pick it up here and fetch accounts.
+  // When App.tsx picks up ?code= on page load it stashes the code in
+  // sessionStorage, navigates here, and we exchange it for a session.
   useEffect(() => {
-    const handler = () => { void completeLinkIfNeeded() }
-    window.addEventListener('banking:linked', handler)
-    return () => window.removeEventListener('banking:linked', handler)
+    const code = sessionStorage.getItem('banking:code')
+    if (!code || !configured) return
+    sessionStorage.removeItem('banking:code')
+    sessionStorage.removeItem('banking:state')
+    void exchangeCode(code)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, token])
+  }, [configured])
 
-  const completeLinkIfNeeded = async () => {
-    if (!configured) return
+  const exchangeCode = async (code: string) => {
+    setStage('exchanging')
+    setError(null)
     try {
-      setStage('linking')
-      setError(null)
-      const accounts = await fetchAccounts(cfg)
-      setSyncAccounts(accounts)
-      setStage('idle')
+      const res = await createSession(cfg, code)
+      setSyncLinked(
+        settings.sync.institutionId || 'unknown',
+        res.session_id,
+        res.accounts
+      )
+      setInfo(`Compte lié : ${res.accounts.length} compte(s). Tape « Synchroniser ».`)
     } catch (e) {
       setError(errorString(e))
-      setStage('idle')
     }
+    setStage('idle')
   }
 
   const test = async () => {
@@ -88,8 +89,8 @@ export default function BankSyncSection() {
   const pickInstitution = async (inst: Institution) => {
     try {
       setStage('linking')
-      const { link, requisition_id } = await createLink(cfg, inst.id)
-      setSyncLinked(inst.id, requisition_id, [])
+      const { link, authorization_id } = await createLink(cfg, inst.id)
+      setSyncLinked(inst.id, authorization_id, [])
       window.location.href = link
     } catch (e) {
       setError(errorString(e))
@@ -100,13 +101,19 @@ export default function BankSyncSection() {
   const sync = async () => {
     setStage('syncing')
     setError(null)
+    setLastSyncAdded(null)
     try {
+      let accounts = settings.sync.accounts
+      if (accounts.length === 0) {
+        accounts = await fetchAccounts(cfg)
+        setSyncAccounts(accounts)
+      }
       const since = settings.sync.lastSync
         ? settings.sync.lastSync.slice(0, 10)
         : undefined
       let totalAdded = 0
       const rules = settings.rules
-      for (const acc of settings.sync.accounts) {
+      for (const acc of accounts) {
         const raws = await fetchTransactions(cfg, acc.id, since)
         const txs = raws.map(r => rawToTransaction(r, rules))
         const { added } = ingestTransactions(txs)
@@ -182,7 +189,7 @@ export default function BankSyncSection() {
             disabled={!configured || stage !== 'idle'}
           >
             <IconUpload size={16} strokeWidth={2.2} style={{ marginRight: 8 }} />
-            Lier une banque
+            {stage === 'exchanging' ? 'Finalisation…' : 'Lier une banque'}
           </button>
         ) : (
           <>
@@ -216,6 +223,7 @@ export default function BankSyncSection() {
                 if (confirm('Délier la banque ? (Les transactions déjà importées restent.)')) {
                   disconnectSync()
                   setLastSyncAdded(null)
+                  setInfo(null)
                 }
               }}
             >
@@ -224,6 +232,11 @@ export default function BankSyncSection() {
           </>
         )}
 
+        {info && (
+          <div className="field">
+            <span className="secondary" style={{ fontSize: 13 }}>{info}</span>
+          </div>
+        )}
         {lastSyncAdded !== null && (
           <div className="field">
             <span className="secondary" style={{ fontSize: 13 }}>
@@ -233,7 +246,6 @@ export default function BankSyncSection() {
             </span>
           </div>
         )}
-
         {error && (
           <div className="field">
             <span
@@ -254,15 +266,12 @@ export default function BankSyncSection() {
         )}
       </div>
       <div className="section-hint">
-        Utilise un worker Cloudflare + GoCardless. Voir <code>worker/README.md</code>
-        pour le déploiement (~30 min, gratuit).
+        Worker Cloudflare (gratuit) + Enable Banking. Voir <code>worker/README.md</code>
+        pour le déploiement.
       </div>
 
       {stage === 'picking' && (
-        <div
-          className="inst-overlay"
-          onClick={() => setStage('idle')}
-        >
+        <div className="inst-overlay" onClick={() => setStage('idle')}>
           <div className="inst-sheet" onClick={e => e.stopPropagation()}>
             <div className="inst-header">
               <span>Choisis ta banque</span>

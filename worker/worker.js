@@ -1,17 +1,23 @@
-// Cloudflare Worker — GoCardless Bank Account Data bridge for BankingApp PWA.
-// Deploy via Cloudflare dashboard: Workers & Pages > Create > Paste this code.
+// Cloudflare Worker — Enable Banking bridge for BankingApp PWA.
+// Deploy via Cloudflare dashboard: Workers & Pages > Create > paste this file.
 //
-// Required bindings (set in dashboard > Worker > Settings):
-//   - Secret: GOCARDLESS_SECRET_ID   (from bankaccountdata.gocardless.com)
-//   - Secret: GOCARDLESS_SECRET_KEY
-//   - Secret: APP_SECRET             (any long random string; paste same value in PWA)
-//   - Variable: PWA_URL              (your PWA URL, e.g. https://app-ios.pages.dev/)
-//   - KV binding: KV                 (create a KV namespace, bind it as "KV")
+// Required bindings (dashboard > Worker > Settings > Variables and Secrets):
+//   Secret:   APP_SECRET           random long string, also in the PWA
+//   Secret:   APP_PRIVATE_KEY      PEM content of the .pem downloaded from
+//                                  Enable Banking when you created the app
+//                                  (paste the whole thing, BEGIN/END lines
+//                                  and newlines included)
+//   Variable: APP_ID               the UUID Enable Banking gave you
+//                                  (filename of the .pem or "Banking-pwa (…)")
+//   Variable: PWA_URL              public URL of the PWA, used as the redirect
+//                                  target, e.g. https://mathiasrouvin-cmd.github.io/App-iOS-/
+//   KV binding: KV                 create a KV namespace, bind it as "KV"
 //
-// The PWA talks to this worker with `Authorization: Bearer <APP_SECRET>`.
-// The worker proxies requests to GoCardless using its own stored token.
+// The PWA calls this worker with `Authorization: Bearer <APP_SECRET>`.
+// The worker signs JWTs with APP_PRIVATE_KEY and proxies to the
+// Enable Banking API.
 
-const GC_BASE = 'https://bankaccountdata.gocardless.com/api/v2'
+const EB_BASE = 'https://api.enablebanking.com'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -28,23 +34,17 @@ export default {
       return new Response(null, { status: 204, headers: CORS })
     }
 
-    // The /api/callback route is hit by the user's browser after bank
-    // consent — it has no auth header, redirect straight to the PWA.
-    if (url.pathname === '/api/callback') {
-      return handleCallback(url, env)
-    }
-
     if (!checkAuth(request, env.APP_SECRET)) {
       return json({ error: 'unauthorized' }, 401)
     }
 
     try {
+      if (url.pathname === '/api/ping') return json({ ok: true })
       if (url.pathname === '/api/institutions') return listInstitutions(url, env)
       if (url.pathname === '/api/link' && request.method === 'POST') return createLink(request, env)
-      if (url.pathname === '/api/requisition') return getRequisition(url, env)
-      if (url.pathname === '/api/accounts') return getAccounts(url, env)
+      if (url.pathname === '/api/session' && request.method === 'POST') return createSession(request, env)
+      if (url.pathname === '/api/accounts') return listAccounts(env)
       if (url.pathname === '/api/transactions') return getTransactions(url, env)
-      if (url.pathname === '/api/ping') return json({ ok: true })
       return json({ error: 'not found' }, 404)
     } catch (e) {
       return json({ error: String((e && e.message) || e) }, 500)
@@ -52,7 +52,7 @@ export default {
   }
 }
 
-// -------------------------------------------------------------- auth/token
+// ---------------------------------------------------------------- auth
 
 function checkAuth(request, secret) {
   if (!secret) return false
@@ -60,133 +60,157 @@ function checkAuth(request, secret) {
   return h === `Bearer ${secret}`
 }
 
-async function getAccessToken(env) {
-  const cached = await env.KV.get('gc_access_token')
-  if (cached) return cached
+// ---------------------------------------------------------------- JWT
 
-  const r = await fetch(`${GC_BASE}/token/new/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({
-      secret_id: env.GOCARDLESS_SECRET_ID,
-      secret_key: env.GOCARDLESS_SECRET_KEY
-    })
-  })
-  if (!r.ok) throw new Error(`gc token ${r.status}: ${await r.text()}`)
-  const d = await r.json()
-  const ttl = Math.max(60, (d.access_expires || 86400) - 60)
-  await env.KV.put('gc_access_token', d.access, { expirationTtl: ttl })
-  return d.access
+function b64url(bytesOrBuf) {
+  const arr = bytesOrBuf instanceof Uint8Array ? bytesOrBuf : new Uint8Array(bytesOrBuf)
+  let bin = ''
+  for (let i = 0; i < arr.byteLength; i++) bin += String.fromCharCode(arr[i])
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-async function gc(path, env, init = {}) {
-  const token = await getAccessToken(env)
-  const r = await fetch(`${GC_BASE}${path}`, {
+function pemToArrayBuffer(pem) {
+  const b64 = pem
+    .replace(/-----BEGIN [^-]+-----/g, '')
+    .replace(/-----END [^-]+-----/g, '')
+    .replace(/\s+/g, '')
+  const bin = atob(b64)
+  const buf = new ArrayBuffer(bin.length)
+  const view = new Uint8Array(buf)
+  for (let i = 0; i < bin.length; i++) view[i] = bin.charCodeAt(i)
+  return buf
+}
+
+let cachedKey = null
+async function getPrivateKey(env) {
+  if (cachedKey) return cachedKey
+  if (!env.APP_PRIVATE_KEY) throw new Error('APP_PRIVATE_KEY secret missing')
+  cachedKey = await crypto.subtle.importKey(
+    'pkcs8',
+    pemToArrayBuffer(env.APP_PRIVATE_KEY),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  return cachedKey
+}
+
+async function signJwt(env) {
+  if (!env.APP_ID) throw new Error('APP_ID variable missing')
+  const header = { alg: 'RS256', kid: env.APP_ID, typ: 'JWT' }
+  const now = Math.floor(Date.now() / 1000)
+  const payload = {
+    iss: 'enablebanking.com',
+    aud: 'api.enablebanking.com',
+    iat: now,
+    exp: now + 3600
+  }
+  const enc = new TextEncoder()
+  const h = b64url(enc.encode(JSON.stringify(header)))
+  const p = b64url(enc.encode(JSON.stringify(payload)))
+  const key = await getPrivateKey(env)
+  const sig = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    key,
+    enc.encode(`${h}.${p}`)
+  )
+  return `${h}.${p}.${b64url(sig)}`
+}
+
+async function eb(path, env, init = {}) {
+  const jwt = await signJwt(env)
+  const r = await fetch(`${EB_BASE}${path}`, {
     ...init,
     headers: {
       ...(init.headers || {}),
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${jwt}`,
       Accept: 'application/json',
       'Content-Type': 'application/json'
     }
   })
-  if (!r.ok) throw new Error(`gc ${path} ${r.status}: ${await r.text()}`)
-  return r.json()
+  const text = await r.text()
+  if (!r.ok) throw new Error(`eb ${path} ${r.status}: ${text}`)
+  return text ? JSON.parse(text) : null
 }
 
-// -------------------------------------------------------------- endpoints
+// ---------------------------------------------------------------- endpoints
 
 async function listInstitutions(url, env) {
   const country = (url.searchParams.get('country') || 'FR').toUpperCase()
-  const list = await gc(`/institutions/?country=${country}`, env)
-  return json(list.map(i => ({ id: i.id, name: i.name, logo: i.logo })))
+  const res = await eb(`/aspsps?country=${country}`, env)
+  const list = res.aspsps || []
+  return json(list.map(a => ({
+    id: `${a.name}__${a.country}`,
+    name: a.name,
+    country: a.country,
+    logo: a.logo
+  })))
 }
 
 async function createLink(request, env) {
   const body = await request.json()
-  const institution_id = body.institution_id
-  if (!institution_id) return json({ error: 'institution_id required' }, 400)
+  if (!body.institution_id) return json({ error: 'institution_id required' }, 400)
+  const parts = body.institution_id.split('__')
+  if (parts.length !== 2) return json({ error: 'invalid institution_id' }, 400)
+  const [name, country] = parts
 
-  const callbackUrl = new URL(request.url).origin + '/api/callback'
+  const validUntil = new Date(Date.now() + 180 * 86400 * 1000).toISOString()
+  const state = crypto.randomUUID()
 
-  const agreement = await gc('/agreements/enduser/', env, {
+  const res = await eb('/auth', env, {
     method: 'POST',
     body: JSON.stringify({
-      institution_id,
-      max_historical_days: body.historical_days || 90,
-      access_valid_for_days: body.valid_days || 90,
-      access_scope: ['balances', 'details', 'transactions']
+      access: { valid_until: validUntil },
+      aspsp: { name, country },
+      psu_type: 'personal',
+      redirect_url: body.redirect_url || env.PWA_URL,
+      state
     })
   })
 
-  const requisition = await gc('/requisitions/', env, {
-    method: 'POST',
-    body: JSON.stringify({
-      redirect: callbackUrl,
-      institution_id,
-      agreement: agreement.id,
-      reference: crypto.randomUUID(),
-      user_language: 'FR'
-    })
-  })
-
-  await env.KV.put(
-    `req:${requisition.id}`,
-    JSON.stringify({
-      institution_id,
-      status: requisition.status,
-      created_at: Date.now()
-    })
-  )
-  await env.KV.put('current_req_id', requisition.id)
+  await env.KV.put(`auth:${res.authorization_id}`, JSON.stringify({
+    institution: { name, country },
+    state,
+    created_at: Date.now()
+  }))
 
   return json({
-    link: requisition.link,
-    requisition_id: requisition.id
+    link: res.url,
+    authorization_id: res.authorization_id,
+    state
   })
 }
 
-async function getRequisition(url, env) {
-  const id = url.searchParams.get('id') || (await env.KV.get('current_req_id'))
-  if (!id) return json({ error: 'no requisition' }, 404)
-  const req = await gc(`/requisitions/${id}/`, env)
+async function createSession(request, env) {
+  const { code } = await request.json()
+  if (!code) return json({ error: 'code required' }, 400)
+
+  const res = await eb('/sessions', env, {
+    method: 'POST',
+    body: JSON.stringify({ code })
+  })
+
+  const accounts = (res.accounts || []).map(normalizeAccount)
+  await env.KV.put('current_session', JSON.stringify({
+    session_id: res.session_id,
+    raw_accounts: res.accounts,
+    accounts,
+    created_at: Date.now(),
+    valid_until: res.access?.valid_until
+  }))
+
   return json({
-    id: req.id,
-    status: req.status, // CR, LN, EX, SU, RJ…
-    accounts: req.accounts,
-    institution_id: req.institution_id
+    session_id: res.session_id,
+    valid_until: res.access?.valid_until,
+    accounts
   })
 }
 
-async function getAccounts(url, env) {
-  const id = url.searchParams.get('id') || (await env.KV.get('current_req_id'))
-  if (!id) return json({ error: 'no requisition' }, 404)
-  const req = await gc(`/requisitions/${id}/`, env)
-  if (req.status !== 'LN') {
-    return json({ error: 'not linked', status: req.status }, 400)
-  }
-
-  const out = []
-  for (const accId of req.accounts || []) {
-    try {
-      const [details, balances] = await Promise.all([
-        gc(`/accounts/${accId}/details/`, env).catch(() => null),
-        gc(`/accounts/${accId}/balances/`, env).catch(() => null)
-      ])
-      out.push({
-        id: accId,
-        iban: details && details.account && details.account.iban,
-        name: details && details.account && (details.account.name || details.account.ownerName),
-        currency: details && details.account && details.account.currency,
-        balance: balances && balances.balances && balances.balances[0]
-          && balances.balances[0].balanceAmount
-          && balances.balances[0].balanceAmount.amount
-      })
-    } catch {
-      out.push({ id: accId })
-    }
-  }
-  return json(out)
+async function listAccounts(env) {
+  const stored = await env.KV.get('current_session')
+  if (!stored) return json({ error: 'no session' }, 404)
+  const { accounts } = JSON.parse(stored)
+  return json(accounts)
 }
 
 async function getTransactions(url, env) {
@@ -198,52 +222,67 @@ async function getTransactions(url, env) {
   const qs = new URLSearchParams()
   if (from) qs.set('date_from', from)
   if (to) qs.set('date_to', to)
+  const path = `/accounts/${accountId}/transactions${qs.toString() ? `?${qs}` : ''}`
 
-  const data = await gc(
-    `/accounts/${accountId}/transactions/${qs.toString() ? `?${qs}` : ''}`,
-    env
-  )
-
-  const normalize = (t, status) => {
-    const amount = Number((t.transactionAmount && t.transactionAmount.amount) || 0)
-    const label = (
-      t.remittanceInformationUnstructured ||
-      (Array.isArray(t.remittanceInformationUnstructuredArray)
-        ? t.remittanceInformationUnstructuredArray.join(' ')
-        : '') ||
-      t.creditorName ||
-      t.debtorName ||
-      ''
-    ).trim()
-    const date = t.bookingDate || t.valueDate || ''
-    const id =
-      t.transactionId ||
-      t.internalTransactionId ||
-      `${date}|${label}|${amount.toFixed(2)}`
-    return { id, date, label, amount, status }
+  let next = path
+  const out = []
+  // EB paginates via continuation_key; loop until none.
+  for (let guard = 0; next && guard < 20; guard++) {
+    const page = await eb(next, env)
+    for (const t of (page.transactions || [])) out.push(normalizeTx(t))
+    if (page.continuation_key) {
+      const sep = path.includes('?') ? '&' : '?'
+      next = `${path}${sep}continuation_key=${encodeURIComponent(page.continuation_key)}`
+    } else {
+      next = null
+    }
   }
 
-  const booked = (data.transactions && data.transactions.booked) || []
-  const pending = (data.transactions && data.transactions.pending) || []
-
-  const txs = [
-    ...booked.map(t => normalize(t, 'booked')),
-    ...pending.map(t => normalize(t, 'pending'))
-  ]
-
-  return json(txs)
+  return json(out)
 }
 
-async function handleCallback(url, env) {
-  // Called by the user's browser after bank consent. We don't know which
-  // requisition they came from (GoCardless doesn't pass the id on their
-  // default redirect unless added to the URL), but we stored the id before
-  // redirecting the user out, so we can just bounce back to the PWA.
-  const pwa = (env.PWA_URL || '/').replace(/\/$/, '')
-  return Response.redirect(`${pwa}/#/link-callback?ok=1`, 302)
+function normalizeAccount(a) {
+  const id = a.uid
+  const iban = (a.account_id && a.account_id.iban) || a.iban
+  const name = a.name || a.product || a.cash_account_name || a.details
+  return {
+    id,
+    iban,
+    name,
+    currency: a.currency
+  }
 }
 
-// -------------------------------------------------------------- helpers
+function normalizeTx(t) {
+  const amt = Number((t.transaction_amount && t.transaction_amount.amount) || 0)
+  const sign = t.credit_debit_indicator === 'DBIT' ? -1 : 1
+  const amount = sign * Math.abs(amt)
+  const remit = Array.isArray(t.remittance_information)
+    ? t.remittance_information.join(' ')
+    : (t.remittance_information || '')
+  const label = (
+    remit ||
+    (t.creditor && t.creditor.name) ||
+    (t.debtor && t.debtor.name) ||
+    t.additional_information ||
+    t.bank_transaction_code ||
+    ''
+  ).toString().trim()
+  const date = (t.booking_date || t.transaction_date || t.value_date || '').slice(0, 10)
+  const id =
+    t.transaction_id ||
+    t.entry_reference ||
+    `${date}|${label}|${amount.toFixed(2)}`
+  return {
+    id,
+    date,
+    label,
+    amount,
+    status: t.status || 'booked'
+  }
+}
+
+// ---------------------------------------------------------------- helpers
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
