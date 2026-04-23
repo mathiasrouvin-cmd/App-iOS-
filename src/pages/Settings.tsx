@@ -3,6 +3,7 @@ import { useStore } from '../store'
 import { CATEGORIES, type CategoryId } from '../types'
 import { isWebAuthnSupported, registerCredential } from '../lock'
 import { IconAdd, IconFingerprint, IconTrash } from '../icons'
+import BankSyncSection from '../components/BankSyncSection'
 
 export default function Settings() {
   const {
@@ -51,6 +52,8 @@ export default function Settings() {
       </div>
 
       <div className="container">
+        <BankSyncSection />
+
         <div className="section-title">Sécurité</div>
         <div className="field-group">
           <div className="field">

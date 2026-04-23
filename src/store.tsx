@@ -6,6 +6,7 @@ import type { CategoryId, Transaction } from './types'
 import { classify, type CustomRule } from './classifier'
 import { parseCsv } from './csv'
 import type { Period } from './utils/date'
+import type { SyncAccount, SyncConfig } from './sync'
 
 const KEY_TXS = 'banking-pwa:transactions'
 const KEY_SETTINGS = 'banking-pwa:settings'
@@ -16,6 +17,7 @@ export interface Settings {
   period: Period
   lockEnabled: boolean
   credentialId: string | null
+  sync: SyncConfig
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -23,7 +25,16 @@ const DEFAULT_SETTINGS: Settings = {
   budgets: {},
   period: 'all',
   lockEnabled: false,
-  credentialId: null
+  credentialId: null,
+  sync: {
+    backendUrl: '',
+    authToken: '',
+    accounts: [],
+    requisitionId: null,
+    institutionId: null,
+    lastSync: null,
+    linkedAt: null
+  }
 }
 
 interface StoreValue {
@@ -44,6 +55,13 @@ interface StoreValue {
   setBudget: (category: CategoryId, amount: number | null) => void
   enableLock: (credentialId: string) => void
   disableLock: () => void
+
+  setSyncBackend: (backendUrl: string, authToken: string) => void
+  setSyncLinked: (institutionId: string, requisitionId: string, accounts: SyncAccount[]) => void
+  setSyncAccounts: (accounts: SyncAccount[]) => void
+  markSynced: (when: string) => void
+  disconnectSync: () => void
+  ingestTransactions: (txs: Transaction[]) => { added: number }
 }
 
 const StoreContext = createContext<StoreValue | null>(null)
@@ -63,7 +81,12 @@ function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY_SETTINGS)
     if (!raw) return DEFAULT_SETTINGS
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) }
+    const parsed = JSON.parse(raw) as Partial<Settings>
+    return {
+      ...DEFAULT_SETTINGS,
+      ...parsed,
+      sync: { ...DEFAULT_SETTINGS.sync, ...(parsed.sync ?? {}) }
+    }
   } catch {
     return DEFAULT_SETTINGS
   }
@@ -174,6 +197,64 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setSettings(s => ({ ...s, lockEnabled: false, credentialId: null }))
   }, [])
 
+  const setSyncBackend = useCallback((backendUrl: string, authToken: string) => {
+    setSettings(s => ({
+      ...s,
+      sync: { ...s.sync, backendUrl: backendUrl.trim(), authToken: authToken.trim() }
+    }))
+  }, [])
+
+  const setSyncLinked = useCallback(
+    (institutionId: string, requisitionId: string, accounts: SyncAccount[]) => {
+      setSettings(s => ({
+        ...s,
+        sync: {
+          ...s.sync,
+          institutionId,
+          requisitionId,
+          accounts,
+          linkedAt: new Date().toISOString()
+        }
+      }))
+    },
+    []
+  )
+
+  const setSyncAccounts = useCallback((accounts: SyncAccount[]) => {
+    setSettings(s => ({ ...s, sync: { ...s.sync, accounts } }))
+  }, [])
+
+  const markSynced = useCallback((when: string) => {
+    setSettings(s => ({ ...s, sync: { ...s.sync, lastSync: when } }))
+  }, [])
+
+  const disconnectSync = useCallback(() => {
+    setSettings(s => ({
+      ...s,
+      sync: { ...DEFAULT_SETTINGS.sync, backendUrl: s.sync.backendUrl, authToken: s.sync.authToken }
+    }))
+  }, [])
+
+  const ingestTransactions = useCallback((incoming: Transaction[]) => {
+    let added = 0
+    setTransactions(prev => {
+      const byId = new Map(prev.map(t => [t.id, t] as const))
+      const seenSig = new Set(prev.map(t => `${t.date}|${t.label}|${t.amount.toFixed(2)}`))
+      const merged = [...prev]
+      for (const tx of incoming) {
+        const sig = `${tx.date}|${tx.label}|${tx.amount.toFixed(2)}`
+        if (byId.has(tx.id) || seenSig.has(sig)) continue
+        merged.push(tx)
+        byId.set(tx.id, tx)
+        seenSig.add(sig)
+        added++
+      }
+      merged.sort((a, b) => (a.date < b.date ? 1 : -1))
+      return merged
+    })
+    return { added }
+  }, [])
+
   const value = useMemo<StoreValue>(() => ({
     transactions,
     settings,
@@ -189,11 +270,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     deleteRule,
     setBudget,
     enableLock,
-    disableLock
+    disableLock,
+    setSyncBackend,
+    setSyncLinked,
+    setSyncAccounts,
+    markSynced,
+    disconnectSync,
+    ingestTransactions
   }), [
     transactions, settings, error,
     importFromText, updateCategory, deleteTransaction, reset, clearError, reclassifyAll,
-    setPeriod, addRule, deleteRule, setBudget, enableLock, disableLock
+    setPeriod, addRule, deleteRule, setBudget, enableLock, disableLock,
+    setSyncBackend, setSyncLinked, setSyncAccounts, markSynced, disconnectSync,
+    ingestTransactions
   ])
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>

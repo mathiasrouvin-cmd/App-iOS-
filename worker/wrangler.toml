@@ -1,0 +1,19 @@
+name = "banking-sync"
+main = "worker.js"
+compatibility_date = "2024-09-01"
+
+# For CLI deploys with `wrangler deploy`.
+# You still need to set the 3 secrets separately:
+#   wrangler secret put GOCARDLESS_SECRET_ID
+#   wrangler secret put GOCARDLESS_SECRET_KEY
+#   wrangler secret put APP_SECRET
+
+# Replace id with the KV namespace you create via:
+#   wrangler kv:namespace create "KV"
+[[kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_KV_ID"
+
+[vars]
+# Public PWA URL (the Worker will redirect the user back here after bank auth)
+PWA_URL = "https://app-ios.pages.dev/"

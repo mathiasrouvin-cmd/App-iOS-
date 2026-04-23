@@ -6,6 +6,7 @@ import Subscriptions from './pages/Subscriptions'
 import Settings from './pages/Settings'
 import CategoryDetail from './pages/CategoryDetail'
 import TransactionDetail from './pages/TransactionDetail'
+import LinkCallback from './pages/LinkCallback'
 import TabBar from './components/TabBar'
 import LockScreen from './components/LockScreen'
 import { useStore } from './store'
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="/analyse" element={<Analytics />} />
         <Route path="/abonnements" element={<Subscriptions />} />
         <Route path="/reglages" element={<Settings />} />
+        <Route path="/link-callback" element={<LinkCallback />} />
         <Route path="/category/:id" element={<CategoryDetail />} />
         <Route path="/transaction/:id" element={<TransactionDetail />} />
         <Route path="*" element={<Navigate to="/" replace />} />

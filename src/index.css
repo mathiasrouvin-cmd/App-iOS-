@@ -989,3 +989,71 @@ a { color: var(--accent); text-decoration: none; }
   .health-card { flex-direction: column; align-items: stretch; }
   .health-ring-wrap { align-self: center; }
 }
+
+/* Bank institution picker sheet */
+.inst-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  animation: fade-in 0.15s ease;
+}
+.inst-sheet {
+  width: 100%;
+  max-width: 520px;
+  background: var(--bg-card);
+  border-radius: 20px;
+  padding: 16px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--shadow-lift);
+  animation: sheet-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheet-in {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.inst-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 15px;
+  font-weight: 600;
+  padding-bottom: 4px;
+}
+.inst-list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.inst-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: var(--text);
+  text-align: left;
+  font-size: 15px;
+  font-weight: 500;
+}
+.inst-row:active { background: color-mix(in oklab, var(--text) 8%, transparent); }
+.inst-logo {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: var(--bg-sub);
+  flex-shrink: 0;
+}
+.inst-logo-placeholder {
+  background: color-mix(in oklab, var(--accent) 15%, var(--bg-sub));
+}
