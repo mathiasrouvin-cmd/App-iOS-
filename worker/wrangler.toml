@@ -6,7 +6,7 @@ compatibility_date = "2024-09-01"
 # Secrets (APP_SECRET, APP_PRIVATE_KEY) are managed separately by
 # Cloudflare and survive deploys; they are NOT in this file.
 [vars]
-APP_ID = "94ff9e4f-8116-4809-8d4e-0527cc6b2503"
+APP_ID = "fabb70a2-2d22-4fc8-a0e6-1563d3074cbd"
 PWA_URL = "https://mathiasrouvin-cmd.github.io/App-iOS-/"
 
 [[kv_namespaces]]
