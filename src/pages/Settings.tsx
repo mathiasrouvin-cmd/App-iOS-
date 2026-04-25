@@ -78,7 +78,9 @@ export default function Settings() {
 
         <div className="section-title">Budgets mensuels</div>
         <div className="field-group">
-          {CATEGORIES.filter(c => c.id !== 'income' && c.id !== 'transfers').map(c => {
+          {CATEGORIES.filter(c =>
+            c.id !== 'income' && c.id !== 'transfers' && c.id !== 'savings'
+          ).map(c => {
             const Icon = c.icon
             return (
               <div className="field" key={c.id}>

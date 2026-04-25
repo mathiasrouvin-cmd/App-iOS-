@@ -2,7 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   IconSubscription, IconGrocery, IconRestaurant, IconTransport,
   IconHouse, IconUtility, IconHealth, IconLeisure, IconShopping,
-  IconIncome, IconTransfer, IconOther
+  IconIncome, IconTransfer, IconSavings, IconOther
 } from './icons'
 
 export type CategoryId =
@@ -17,6 +17,7 @@ export type CategoryId =
   | 'shopping'
   | 'income'
   | 'transfers'
+  | 'savings'
   | 'other'
 
 export interface CategoryMeta {
@@ -46,6 +47,7 @@ export const CATEGORIES: CategoryMeta[] = [
   { id: 'shopping',      label: 'Shopping',    icon: IconShopping,    color: '#6366f1' },
   { id: 'income',        label: 'Revenus',     icon: IconIncome,      color: '#10b981' },
   { id: 'transfers',     label: 'Virements',   icon: IconTransfer,    color: '#0891b2' },
+  { id: 'savings',       label: 'Épargne',     icon: IconSavings,     color: '#059669' },
   { id: 'other',         label: 'Autres',      icon: IconOther,       color: '#64748b' }
 ]
 

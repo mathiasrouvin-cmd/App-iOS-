@@ -17,6 +17,7 @@ export {
   ShoppingBag as IconShopping,
   ArrowDownLeft as IconIncome,
   ArrowLeftRight as IconTransfer,
+  PiggyBank as IconSavings,
   Sparkles as IconOther,
 
   // UI chrome

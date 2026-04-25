@@ -51,6 +51,17 @@ const rules: Array<[CategoryId, string[]]> = [
     ' caf ', 'allocations familiales', 'remboursement', 'refund',
     'bulletin de paie', 'bulletin paie', 'fiche de paie'
   ]],
+  // Savings must be checked before transfers so a "VIREMENT LIVRET A"
+  // ends up here and not in the generic transfers bucket.
+  ['savings', [
+    'livret a', 'livret jeune', 'livret bleu', 'livret rose',
+    'livret developpement durable', ' ldd ', ' ldds ',
+    'livret epargne', ' lep ',
+    'plan epargne', ' pel ', ' cel ',
+    'pea ', ' pea-', 'compte titres', 'assurance vie',
+    'epargne', 'caisse epargne livret', 'boursorama epargne',
+    'tontine'
+  ]],
   ['transfers', [
     'virement', 'vir sepa', 'lydia', 'paypal', 'revolut', 'wise',
     'transfert', 'prelevement sepa'

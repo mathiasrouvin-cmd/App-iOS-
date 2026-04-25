@@ -47,8 +47,9 @@ function variableExpensesFor(
       monthKey(t.date) === month &&
       t.amount < 0 &&
       !fixedIds.has(t.id) &&
-      // Transfers (to own savings, P2P, etc.) move money but are not spending.
-      t.category !== 'transfers'
+      // Transfers and savings move money but are not spending.
+      t.category !== 'transfers' &&
+      t.category !== 'savings'
   )
   return {
     sum: txs.reduce((s, t) => s + Math.abs(t.amount), 0),

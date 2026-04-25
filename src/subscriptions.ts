@@ -54,10 +54,10 @@ function monthlyFromCadence(amount: number, cadence: Subscription['cadence']): n
 }
 
 export function detectSubscriptions(transactions: Transaction[]): Subscription[] {
-  // Transfers (to own savings, between own accounts, to friends) are not
-  // subscriptions — exclude them even if recurring monthly.
+  // Transfers and savings (own accounts movement) aren't subscriptions
+  // even if they happen monthly with the same amount.
   const expenses = transactions.filter(
-    t => t.amount < 0 && t.category !== 'transfers'
+    t => t.amount < 0 && t.category !== 'transfers' && t.category !== 'savings'
   )
   const groups = new Map<string, Transaction[]>()
   for (const t of expenses) {
